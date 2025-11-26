@@ -4,5 +4,6 @@
         <file>icons/play.png</file>
         <file>icons/stop.png</file>
         <file>icons/folder.png</file>
+        <file>icons/next.png</file>
     </qresource>
 </RCC>

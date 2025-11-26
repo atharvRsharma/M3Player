@@ -58,6 +58,8 @@
    <addaction name="actionPlay"/>
    <addaction name="separator"/>
    <addaction name="actionStop"/>
+   <addaction name="separator"/>
+   <addaction name="actionNext"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionOpen">
@@ -106,6 +108,21 @@
    </property>
    <property name="text">
     <string>Pause</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionNext">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/images/icons/next.png</normaloff>:/images/icons/next.png</iconset>
+   </property>
+   <property name="text">
+    <string>Next</string>
+   </property>
+   <property name="toolTip">
+    <string>Next</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
