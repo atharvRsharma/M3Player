@@ -4,48 +4,61 @@
 #include <QMainWindow>
 #include <QMediaPlayer>
 #include <QAudioOutput>
-#include <QVideoWidget>
+#include <QtMultimediaWidgets/QVideoWidget>
 #include <QSlider>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QMimeData>
-#include <QLabel>
-#include <QStackedLayout>
+#include <QGridLayout>
+#include <QMenu>
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
+struct VideoSlot {
+    QMediaPlayer  *player;
+    QAudioOutput  *audio;
+    QWidget       *wrapper;
+    QVideoWidget  *video;
+    QSlider       *slider;
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 protected:
-    void dropEvent(QDropEvent *e) override;
     void dragEnterEvent(QDragEnterEvent *e) override;
-
-
-    bool eventFilter(QObject *watched, QEvent *event) override;
+    void dropEvent(QDropEvent *e) override;
+    void keyPressEvent(QKeyEvent *event) override;
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
     void on_actionOpen_triggered();
-    void on_actionStop_triggered();
-    void on_actionPlay_triggered();
+    void on_actionPlay_triggered(int index);
     void on_actionPause_triggered();
-
-    void on_actionNext_triggered();
+    void on_actionStop_triggered();
+    void on_actionReplay_triggered(int index);
 
 private:
-    Ui::MainWindow *ui;
-    QMediaPlayer *player;
-    QAudioOutput *audio;
-    QVideoWidget *video;
+    void addVideo(const QString &path);
+    void removeVideo(int index);
+    void rebuildGrid();
+    void updateSelectionVisuals();
 
-    QLabel *dropZone;
-    QSlider *slider;
+    Ui::MainWindow *ui;
+
+    QWidget     *container;
+    QGridLayout *grid;
+    QWidget* fullscreenWidget = nullptr;
+    int fullscreenIndex = -1;
+
+    std::vector<VideoSlot> videoSlots;
+
+    int selectedIndex = -1;
+    bool isFullscreen = false;
 };
+
 #endif
