@@ -65,6 +65,15 @@ void MainWindow::on_actionPlay_triggered()
     }
 }
 
+void MainWindow::on_actionReplay_triggered()
+{
+    if(!selectedIndices.empty()){
+        for(int i = 0; i < (int)selectedIndices.size(); ++i) {
+            mediaSlots[selectedIndices[i]]->replay();
+        }
+    }
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     auto findSlotIndex = [&]() -> int {
@@ -115,7 +124,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
     if (event->type() == QEvent::MouseButtonPress) {
         auto *e = static_cast<QMouseEvent*>(event);
-        if(e->button() == Qt::LeftButton) {
+        if (e->button() == Qt::LeftButton) {
             int i = findSlotIndex();
             if (i != -1) {
                 justClicked = true;
@@ -130,14 +139,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
         }
 
-        else if(e->button() == Qt::RightButton){
-            int i = findSlotIndex();
-            qDebug() << "right click" << i << " " << hoveredIndex;
+        else if (e->button() == Qt::RightButton){
+            // int i = findSlotIndex();
+            // qDebug() << "right click" << i << " " << hoveredIndex;
             QMenu menu;
             QAction *closeAct = menu.addAction("Close");
             QAction *selectedAct = menu.exec(QCursor::pos());
             if (selectedAct == closeAct && !selectedIndices.empty()) {
-                for(int j = selectedIndices.size(); j > -1; --j) {
+                for(int j = selectedIndices.size() - 1; j > -1; --j) {
                     removeMedia(selectedIndices[j]);
                 }
             }
@@ -174,12 +183,63 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                 }
             }
         }
+
+        if (e->key() == Qt::Key_Delete) {
+            if (!selectedIndices.empty()) {
+                for(int j = selectedIndices.size() - 1; j > -1; --j) {
+                    removeMedia(selectedIndices[j]);
+                }
+            }
+        }
+
+        if (e->key() == Qt::Key_M) {
+            if (!selectedIndices.empty()) {
+                for(int j{}; j < (int)selectedIndices.size(); ++j) {
+                    mediaSlots[selectedIndices[j]]->toggleMute();
+                }
+            }
+        }
+
+        if (e->key() == Qt::Key_R) {
+            on_actionReplay_triggered();
+        }
+
+        if (e->key() == Qt::Key_F) {
+            toggleFullscreen();
+        }
     }
 
     return QMainWindow::eventFilter(obj, event);
 }
 
+void MainWindow::toggleFullscreen() {
+    if (selectedIndices.size() == 1) {
+        if (fullscreenIndex == -1) {
+            fullscreenIndex = selectedIndices[0];
+            grid->removeWidget(mediaSlots[fullscreenIndex]->wrapper);
+            mediaSlots[fullscreenIndex]->wrapper->setParent(container);
+            mediaSlots[fullscreenIndex]->wrapper->setGeometry(container->rect());
+            mediaSlots[fullscreenIndex]->wrapper->raise();
+            mediaSlots[fullscreenIndex]->wrapper->show();
+            for (int i = 0; i < (int)mediaSlots.size(); ++i){
+                if (i != fullscreenIndex) {
+                    mediaSlots[i]->pause();
+                    mediaSlots[i]->wrapper->hide();
+                }
+            }
+        }
 
+        else {
+            mediaSlots[fullscreenIndex]->wrapper->setParent(container);
+            rebuildGrid();
+            for (int i = 0; i < (int)mediaSlots.size(); ++i) {
+                mediaSlots[i]->wrapper->show();
+                mediaSlots[i]->play();
+            }
+            fullscreenIndex = -1;
+        }
+    }
+}
 
 
 void MainWindow::addMedia(const QString &path) {
@@ -245,9 +305,9 @@ void MainWindow::removeMedia(int index){
     mediaSlots.erase(mediaSlots.begin() + index);
     selectedIndices.clear();
     hoveredIndex = -1;
-    rebuildGrid();
     container->update();
     container->repaint();
+    rebuildGrid();
 }
 
 

@@ -17,6 +17,8 @@ struct MediaSlot {
     virtual void play() {}
     virtual void pause() {}
     virtual void stop() {}
+    virtual void toggleMute() {}
+    virtual void replay() {}
     virtual QString type() const = 0;
 
     QWidget  *wrapper = nullptr;
@@ -33,6 +35,12 @@ struct VideoSlot : MediaSlot {
     void play() override { player->play(); }
     void pause() override { player->pause(); }
     void stop() override { player->stop(); }
+    void toggleMute() override {
+        if (!audio->isMuted()) audio->setMuted(true);
+        else audio->setMuted(false);
+    }
+    void replay() override { player->setPosition(0); player->play(); }
+
 
     QString type() const override { return "video"; }
 
@@ -49,6 +57,13 @@ struct AudioSlot : MediaSlot {
     void play() override { player->play(); }
     void pause() override { player->pause(); }
     void stop() override { player->stop(); }
+    void toggleMute() override {
+        if (!audio->isMuted()) audio->setMuted(true);
+        else audio->setMuted(false);
+    }
+    void replay() override { player->setPosition(0); player->play(); }
+
+
     QString type() const override { return "audio"; }
 
     ~AudioSlot() { stop(); }

@@ -28,6 +28,7 @@ private slots:
     void on_actionOpen_triggered();
     void on_actionPause_triggered();
     void on_actionPlay_triggered();
+    void on_actionReplay_triggered();
 
 private:
     void addMedia(const QString &path);
@@ -35,6 +36,7 @@ private:
     void highlightSelected();
     void highlight();
     void removeMedia(int index);
+    void toggleFullscreen();
 
     Ui::MainWindow *ui;
     QWidget        *container;
@@ -42,6 +44,7 @@ private:
 
     //selection related global vars(TODO get rid of ts </3)
     int hoveredIndex = -1;
+    int fullscreenIndex = -1;
     bool justClicked = false;
     std::vector<int> selectedIndices{};
 
