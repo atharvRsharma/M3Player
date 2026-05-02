@@ -5,8 +5,13 @@
 #include <QMediaPlayer>
 #include <QAudioOutput>
 #include <QtMultimediaWidgets/QVideoWidget>
+#include <QGraphicsWidget>
+#include <QGraphicsView>
 #include <QSlider>
 #include <QLabel>
+
+#include <poppler-qt6.h>
+
 #include <memory>
 
 
@@ -22,7 +27,6 @@ struct MediaSlot {
     virtual QString type() const = 0;
 
     QWidget  *wrapper = nullptr;
-
 };
 
 struct VideoSlot : MediaSlot {
@@ -40,7 +44,6 @@ struct VideoSlot : MediaSlot {
         else audio->setMuted(false);
     }
     void replay() override { player->setPosition(0); player->play(); }
-
 
     QString type() const override { return "video"; }
 
@@ -63,7 +66,6 @@ struct AudioSlot : MediaSlot {
     }
     void replay() override { player->setPosition(0); player->play(); }
 
-
     QString type() const override { return "audio"; }
 
     ~AudioSlot() { stop(); }
@@ -77,6 +79,17 @@ struct ImageSlot : MediaSlot {
     QString type() const override { return "image"; }
 };
 
+struct PdfSlot : MediaSlot {
+    std::unique_ptr<Poppler::Document>      document;
+    QGraphicsView                          *view;
+    QGraphicsScene                         *scene;
+
+    void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+
+    QString type() const override { return "pdf"; }
+
+    ~PdfSlot() { stop(); }
+};
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance);
 

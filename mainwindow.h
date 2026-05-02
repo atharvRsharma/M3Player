@@ -33,10 +33,10 @@ private slots:
 private:
     void addMedia(const QString &path);
     void rebuildGrid();
-    void highlightSelected();
     void highlight();
     void removeMedia(int index);
-    void toggleFullscreen();
+    void enterFullscreen(int index);
+    void exitFullscreen();
 
     Ui::MainWindow *ui;
     QWidget        *container;

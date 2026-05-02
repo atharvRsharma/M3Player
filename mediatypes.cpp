@@ -10,6 +10,7 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
     static const QStringList vid = {"mp4", "mkv", "avi", "mov"};
     static const QStringList aud = {"mp3", "m4a", "flac", "ogg", "wav"};
     static const QStringList img = {"png","jpg","jpeg","webp","gif"};
+    static const QStringList pdf = {"pdf"};
 
     QString ext = QFileInfo(path).suffix().toLower();
 
@@ -25,6 +26,12 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
     }
     if (img.contains(ext)) {
         auto slot = std::make_unique<ImageSlot>();
+        slot->load(path, parent, thisInstance);
+        return slot;
+    }
+
+    if (pdf.contains(ext)) {
+        auto slot = std::make_unique<PdfSlot>();
         slot->load(path, parent, thisInstance);
         return slot;
     }
@@ -66,11 +73,11 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     wrapper->setAttribute(Qt::WA_Hover);
 
 
+    slider->setEnabled(false);
     QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
     QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
+    QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
     QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
-
-
 
 
     player->setSource(QUrl::fromLocalFile(path));
@@ -112,8 +119,10 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 
     wrapper->setAttribute(Qt::WA_Hover);
 
+    slider->setEnabled(false);
     QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
     QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
+    QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
     QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
 
     QObject::connect(player, &QMediaPlayer::metaDataChanged, [this]{
@@ -139,8 +148,6 @@ void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     imageLabel = new QLabel(wrapper);
     pixmap = QPixmap(path);
 
-
-
     auto *layout = new QVBoxLayout(wrapper);
     layout->setContentsMargins(0,0,0,0);
     layout->addWidget(imageLabel);
@@ -153,6 +160,32 @@ void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     wrapper->setAcceptDrops(true);
     wrapper->installEventFilter(thisInstance);
     wrapper->setAttribute(Qt::WA_Hover);
+}
 
-
+void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
+    wrapper = new QWidget(parent);
+    view = new QGraphicsView(wrapper);
+    scene = new QGraphicsScene(view);
+    auto *layout = new QVBoxLayout(wrapper);
+    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(view);
+    document = Poppler::Document::load(path);
+    if (!document || document->isLocked() || document->isEncrypted()) {
+        return;
+    }
+    int pageCt = document->numPages();
+    qreal yOffset = 0;
+    for (int i{}; i < pageCt; ++i) {
+        std::unique_ptr<Poppler::Page> p = document->page(i);
+        QImage img = p->renderToImage(300);
+        QPixmap pix = QPixmap::fromImage(img);
+        auto *item = new QGraphicsPixmapItem(pix);
+        item->setPos(0, yOffset);
+        scene->addItem(item);
+        yOffset += pix.height() + 10;
+    }
+    view->setScene(scene);
+    wrapper->setAcceptDrops(true);
+    wrapper->installEventFilter(thisInstance);
+    wrapper->setAttribute(Qt::WA_Hover);
 }
