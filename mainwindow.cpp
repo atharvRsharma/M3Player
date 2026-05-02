@@ -73,15 +73,30 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         auto *w = qobject_cast<QWidget*>(obj);
         while (w) {
             for (int i = 0; i < (int)mediaSlots.size(); ++i)
-                if (mediaSlots[i]->wrapper == w) return i;
+                if (mediaSlots[i]->wrapper == w || mediaSlots[i]->border == w) return i;
             w = w->parentWidget();
         }
         return -1;
     };
 
     if (event->type() == QEvent::DragEnter) {
+
         auto *e = static_cast<QDragEnterEvent*>(event);
         if (e->mimeData()->hasUrls()) e->acceptProposedAction();
+        return true;
+    }
+
+    if (event->type() == QEvent::DragEnter) {
+        auto *e = static_cast<QDragEnterEvent*>(event);
+        e->acceptProposedAction();
+        e->accept();
+        return true;
+    }
+
+    if (event->type() == QEvent::DragMove) {
+        auto *e = static_cast<QDragMoveEvent*>(event);
+        e->acceptProposedAction();
+        e->accept();
         return true;
     }
 
@@ -89,17 +104,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         auto *e = static_cast<QDropEvent*>(event);
         for (const QUrl &url : e->mimeData()->urls()) {
             QString file = url.toLocalFile();
-            if (!file.isEmpty()) addMedia(file);
-        }
-        return true;
-    }
-
-    if (event->type() == QEvent::HoverEnter) {
-        int i = findSlotIndex();
-        if (i != -1) {
-            hoveredIndex = i;
-            highlight();
-            setFocus();
+            if (!file.isEmpty())
+                addMedia(file);
         }
         return true;
     }
@@ -112,6 +118,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         return true;
     }
 
+
+
     if (event->type() == QEvent::MouseButtonPress) {
         auto *e = static_cast<QMouseEvent*>(event);
         if (e->button() == Qt::LeftButton) {
@@ -120,7 +128,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             if (i != -1) {
                 justClicked = true;
                 if (!ctrl) selectedIndices.clear();
-                selectedIndices.emplace_back(i);
+                if (std::find(selectedIndices.begin(), selectedIndices.end(), i) == selectedIndices.end())
+                    selectedIndices.emplace_back(i);
                 highlight();
                 setFocus();
                 return true;
@@ -128,8 +137,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
             else {
                 if (!ctrl) {
-                    selectedIndices.clear();
-                    highlight();
+                    // check if obj belongs to any slot before clearing
+                    bool isSlotWidget = false;
+                    for (auto &s : mediaSlots)
+                        if (s->border == obj || s->wrapper == obj) { isSlotWidget = true; break; }
+                    if (!isSlotWidget) {
+                        selectedIndices.clear();
+                        highlight();
+                    }
                 }
             }
         }
@@ -154,13 +169,21 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             auto *img = dynamic_cast<ImageSlot*>(mediaSlots[i].get());
             if (img && img->wrapper == obj) {
                 QSize newSize = img->wrapper->size();
-                if (newSize == img->lastSize) return true;
-                img->lastSize = newSize;
-                img->imageLabel->setPixmap(img->pixmap.scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                if (newSize != img->lastSize) {
+                    img->lastSize = newSize;
+                    img->imageLabel->setPixmap(img->pixmap.scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                }
+                img->border->setGeometry(img->wrapper->rect());
                 return true;
+            }
+            if (mediaSlots[i]->wrapper == obj) {
+                mediaSlots[i]->border->setGeometry(mediaSlots[i]->wrapper->rect());
+                break;
             }
         }
     }
+
+
 
     if (event->type() == QEvent::KeyPress) {
         auto *e = static_cast<QKeyEvent*>(event);
@@ -289,6 +312,7 @@ void MainWindow::addMedia(const QString &path) {
 
 void MainWindow::rebuildGrid()
 {
+
     for (auto &s : mediaSlots) grid->removeWidget(s->wrapper);
 
     int n = static_cast<int>(mediaSlots.size());
@@ -296,9 +320,10 @@ void MainWindow::rebuildGrid()
     for (int c = 0; c < grid->columnCount(); ++c) grid->setColumnStretch(c, 0);
 
     if (n == 0) return;
-    
+
     int cols = static_cast<int>(std::ceil(std::sqrt(n)));
     int rows = static_cast<int>(std::ceil(static_cast<double>(n) / cols));
+
 
     for (int i = 0; i < n; ++i) {
         int r = i / cols;
@@ -306,7 +331,6 @@ void MainWindow::rebuildGrid()
         grid->addWidget(mediaSlots[i]->wrapper, r, c);
         mediaSlots[i]->wrapper->show();
     }
-
     for (int r = 0; r < rows; ++r) grid->setRowStretch(r, 1);
 
     for (int c = 0; c < cols; ++c) grid->setColumnStretch(c, 1);
@@ -315,15 +339,17 @@ void MainWindow::rebuildGrid()
 
 void MainWindow::highlight()
 {
+
     for (int i = 0; i < (int)mediaSlots.size(); ++i) {
         bool selected = std::find(selectedIndices.begin(), selectedIndices.end(), i) != selectedIndices.end();
         bool hovered  = (i == hoveredIndex);
 
-        if (selected) mediaSlots[i]->wrapper->setStyleSheet("border: 3px solid #00aaff;");
-
-        else if (hovered) mediaSlots[i]->wrapper->setStyleSheet("border: 3px solid #555555;");
-
-        else mediaSlots[i]->wrapper->setStyleSheet("border: none;");
+        if (selected)
+            mediaSlots[i]->wrapper->setStyleSheet("border: 3px solid #00aaff;");
+        else if (hovered)
+            mediaSlots[i]->wrapper->setStyleSheet("border: 3px solid #555555;");
+        else
+            mediaSlots[i]->wrapper->setStyleSheet("border: none;");
     }
 }
 

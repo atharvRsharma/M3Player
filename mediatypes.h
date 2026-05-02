@@ -9,8 +9,8 @@
 #include <QGraphicsView>
 #include <QSlider>
 #include <QLabel>
-
-#include <poppler-qt6.h>
+#include <QPdfDocument>
+#include <QPdfView>
 
 #include <memory>
 
@@ -27,6 +27,7 @@ struct MediaSlot {
     virtual QString type() const = 0;
 
     QWidget  *wrapper = nullptr;
+    QWidget  *border  = nullptr;
 };
 
 struct VideoSlot : MediaSlot {
@@ -80,15 +81,13 @@ struct ImageSlot : MediaSlot {
 };
 
 struct PdfSlot : MediaSlot {
-    std::unique_ptr<Poppler::Document>      document;
-    QGraphicsView                          *view;
-    QGraphicsScene                         *scene;
+    QPdfDocument    *doc;
+    QGraphicsView   *viewer;
+    QGraphicsScene  *scene;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
 
     QString type() const override { return "pdf"; }
-
-    ~PdfSlot() { stop(); }
 };
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance);
