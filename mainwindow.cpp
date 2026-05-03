@@ -80,13 +80,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     };
 
     if (event->type() == QEvent::DragEnter) {
-
-        auto *e = static_cast<QDragEnterEvent*>(event);
-        if (e->mimeData()->hasUrls()) e->acceptProposedAction();
-        return true;
-    }
-
-    if (event->type() == QEvent::DragEnter) {
         auto *e = static_cast<QDragEnterEvent*>(event);
         e->acceptProposedAction();
         e->accept();
@@ -110,15 +103,29 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         return true;
     }
 
+    if (event->type() == QEvent::HoverEnter) {
+        int i = findSlotIndex();
+        if (i != -1) {
+            hoveredIndex = i;
+            mediaSlots[hoveredIndex]->toggleMediaControls(true);
+            highlight();
+            setFocus();
+        }
+        return true;
+    }
+
     if (event->type() == QEvent::HoverLeave) {
         if (justClicked) { justClicked = false; return true; }
+        int oldHovered = hoveredIndex;
         hoveredIndex = -1;
+        bool onlyHovered = std::find(selectedIndices.begin(), selectedIndices.end(), oldHovered) == selectedIndices.end();
+        if (oldHovered >= 0 && oldHovered < (int)mediaSlots.size() && onlyHovered)
+            mediaSlots[oldHovered]->toggleMediaControls(false);
+
         highlight();
         setFocus();
         return true;
     }
-
-
 
     if (event->type() == QEvent::MouseButtonPress) {
         auto *e = static_cast<QMouseEvent*>(event);
@@ -127,55 +134,76 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             bool ctrl = e->modifiers() & Qt::ControlModifier;
             if (i != -1) {
                 justClicked = true;
-                if (!ctrl) selectedIndices.clear();
+                if (!ctrl) {
+                    for (int j : selectedIndices)
+                        mediaSlots[j]->toggleMediaControls(false);
+                    selectedIndices.clear();
+                }
                 if (std::find(selectedIndices.begin(), selectedIndices.end(), i) == selectedIndices.end())
                     selectedIndices.emplace_back(i);
+
+                for (int j : selectedIndices)
+                    mediaSlots[j]->toggleMediaControls(true);
+
                 highlight();
                 setFocus();
+                if (mediaSlots[i]->type() == "pdf" || mediaSlots[i]->type() == "image") return false;
                 return true;
             }
 
             else {
                 if (!ctrl) {
-                    // check if obj belongs to any slot before clearing
-                    bool isSlotWidget = false;
-                    for (auto &s : mediaSlots)
-                        if (s->border == obj || s->wrapper == obj) { isSlotWidget = true; break; }
-                    if (!isSlotWidget) {
-                        selectedIndices.clear();
-                        highlight();
-                    }
+                    for (int j : selectedIndices)
+                        mediaSlots[j]->toggleMediaControls(false);
+                    selectedIndices.clear();
+                    highlight();
                 }
             }
         }
 
         else if (e->button() == Qt::RightButton){
+            int i = findSlotIndex();
             QMenu menu;
             QAction *closeAct = menu.addAction("Close");
             QAction *selectedAct = menu.exec(QCursor::pos());
+            if (hoveredIndex != -1 && hoveredIndex == i) removeMedia(hoveredIndex);
             if (selectedAct == closeAct && !selectedIndices.empty()) {
                 for(int j = selectedIndices.size() - 1; j > -1; --j) {
-                    removeMedia(selectedIndices[j]);
+                    if (selectedIndices[j] == i) removeMedia(selectedIndices[j]);
                 }
             }
 
-            else if (hoveredIndex != -1) removeMedia(hoveredIndex);
             return true;
         }
     }
 
     if (event->type() == QEvent::Resize) {
         for (int i = 0; i < (int)mediaSlots.size(); ++i) {
-            auto *img = dynamic_cast<ImageSlot*>(mediaSlots[i].get());
-            if (img && img->wrapper == obj) {
+            if (mediaSlots[i]->type() == "image" && mediaSlots[i]->wrapper == obj) {
+                auto *img = dynamic_cast<ImageSlot*>(mediaSlots[i].get());
                 QSize newSize = img->wrapper->size();
                 if (newSize != img->lastSize) {
                     img->lastSize = newSize;
-                    img->imageLabel->setPixmap(img->pixmap.scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                    img->item->setPixmap(img->pixmap.scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
                 }
                 img->border->setGeometry(img->wrapper->rect());
                 return true;
             }
+
+            if (mediaSlots[i]->type() == "audio" && mediaSlots[i]->wrapper == obj) {
+                auto *aud = static_cast<AudioSlot*>(mediaSlots[i].get());
+                QSize newSize = aud->wrapper->size();
+                if (newSize != aud->lastSize) {
+                    aud->lastSize = newSize;
+                    if (!aud->coverImage.isNull())
+                        aud->cover->setPixmap(QPixmap::fromImage(aud->coverImage).scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                }
+                int sliderHeight = aud->slider->isVisible() ? aud->slider->height() : 0;
+                aud->overlay->setGeometry(0, aud->wrapper->height() - 60 - sliderHeight, aud->wrapper->width(), 60);
+                aud->border->setGeometry(aud->wrapper->rect());
+                return true;
+            }
+
             if (mediaSlots[i]->wrapper == obj) {
                 mediaSlots[i]->border->setGeometry(mediaSlots[i]->wrapper->rect());
                 break;
@@ -189,7 +217,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         auto *e = static_cast<QKeyEvent*>(event);
 
         if (e->key() == Qt::Key_Space) {
-            static bool isPaused  = false;
+            static bool isPaused  = true;
             if (!selectedIndices.empty()) {
                 if(!isPaused) {
                     on_actionPause_triggered();
@@ -249,7 +277,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
             if (newIndex >= 0 && newIndex < n) selectedIndices[0] = newIndex;
 
-            if (fullscreenIndex == -1) highlight();
+            if (fullscreenIndex == -1) {
+                mediaSlots[selectedIndices[0]]->toggleMediaControls(true);
+                highlight();
+            }
 
             else {
                 exitFullscreen();
@@ -271,6 +302,13 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     for (int i{}; i < (int)mediaSlots.size(); ++i) selectedIndices.emplace_back(i);
                 }
                 highlight();
+            }
+        }
+
+        if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Plus) {
+            if (fullscreenIndex != -1) {
+                qreal factor = e->key() == Qt::Key_Minus ? 0.8 :  e->key() == Qt::Key_Plus ? 1.2 : 1;
+                mediaSlots[fullscreenIndex]->zoom(factor);
             }
         }
     }
@@ -307,6 +345,7 @@ void MainWindow::addMedia(const QString &path) {
     auto slot = makeSlot(path, container, this);
     if (!slot) return;
     mediaSlots.push_back(std::move(slot));
+    //if (fullscreenIndex == -1) rebuildGrid();
     rebuildGrid();
 }
 
@@ -345,11 +384,11 @@ void MainWindow::highlight()
         bool hovered  = (i == hoveredIndex);
 
         if (selected)
-            mediaSlots[i]->wrapper->setStyleSheet("border: 3px solid #00aaff;");
+            mediaSlots[i]->border->setStyleSheet("border: 3px solid #00aaff;");
         else if (hovered)
-            mediaSlots[i]->wrapper->setStyleSheet("border: 3px solid #555555;");
+            mediaSlots[i]->border->setStyleSheet("border: 3px solid #555555;");
         else
-            mediaSlots[i]->wrapper->setStyleSheet("border: none;");
+            mediaSlots[i]->border->setStyleSheet("border: none;");
     }
 }
 
@@ -366,5 +405,6 @@ void MainWindow::removeMedia(int index){
     rebuildGrid();
 }
 
-
+//TODO removal of media thru context menus is borderline unusable, need to figure out right->left
+//sequece and get exact position of context menu and its options
 

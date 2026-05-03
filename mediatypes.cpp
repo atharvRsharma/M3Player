@@ -5,6 +5,8 @@
 #include <QGridLayout>
 #include <QMenu>
 #include <QMediaMetaData>
+#include <sstream>
+#include <string>
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
     static const QStringList vid = {"mp4", "mkv", "avi", "mov"};
@@ -55,6 +57,8 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     layout->addWidget(video);
     layout->addWidget(slider);
 
+    slider->hide();
+
     player->setAudioOutput(audio);
     player->setVideoOutput(video);
     audio->setVolume(1.0f);
@@ -64,7 +68,7 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     video->setFocusPolicy(Qt::NoFocus);
     video->setAcceptDrops(true);
     video->installEventFilter(thisInstance);
-
+    slider->hide();
     for (QObject *child : video->findChildren<QObject*>())
         static_cast<QWidget*>(child)->installEventFilter(thisInstance);
 
@@ -86,7 +90,7 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 
 
     player->setSource(QUrl::fromLocalFile(path));
-    player->play();
+    player->pause();
 }
 
 void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
@@ -97,14 +101,21 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     cover        = new QLabel(wrapper);
     title        = new QLabel(wrapper);
     artist       = new QLabel(wrapper);
+    overlay      = new QWidget(wrapper);
     border       = new QWidget(wrapper);
+
     auto *layout = new QVBoxLayout(wrapper);
+    auto *metaDataLayout = new QVBoxLayout(overlay);
 
     layout->setContentsMargins(0,0,0,0);
     layout->addWidget(cover);
-    layout->addWidget(title);
-    layout->addWidget(artist);
+    metaDataLayout->addWidget(title);
+    metaDataLayout ->addWidget(artist);
     layout->addWidget(slider);
+
+    title->hide();
+    artist->hide();
+    slider->hide();
 
     player->setAudioOutput(audio);
 
@@ -114,7 +125,9 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 
     cover->setFocusPolicy(Qt::NoFocus);
     cover->setAcceptDrops(true);
+    cover->setAlignment(Qt::AlignCenter);
     cover->installEventFilter(thisInstance);
+    cover->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
 
     for (QObject *child : cover->findChildren<QObject*>())
         static_cast<QWidget*>(child)->installEventFilter(thisInstance);
@@ -126,8 +139,13 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     slider->setEnabled(false);
 
     border->setAttribute(Qt::WA_TransparentForMouseEvents);
-    border->setGeometry(wrapper->rect());
+    //border->setGeometry(wrapper->rect());
     border->raise();
+
+    int sliderHeight = slider->sizeHint().height();
+    int overlayHeight = 60;
+    overlay->setGeometry(0, wrapper->height() - overlayHeight - sliderHeight, wrapper->width(), overlayHeight);
+    overlay->raise();
 
 
     QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
@@ -137,36 +155,53 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 
     QObject::connect(player, &QMediaPlayer::metaDataChanged, [this]{
         if(QVariant thumbnail = player->metaData().value(QMediaMetaData::ThumbnailImage); !thumbnail.isNull()) {
-            cover->setPixmap(QPixmap::fromImage(thumbnail.value<QImage>()).scaled(200, 200, Qt::KeepAspectRatio));
+            coverImage = thumbnail.value<QImage>();
+            cover->setPixmap(QPixmap::fromImage(coverImage).scaled(cover->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
         }
 
         if(QString titleName = player->metaData().stringValue(QMediaMetaData::Title); !titleName.isEmpty()) {
             title->setText(titleName);
         }
 
-        if(QString artistName = player->metaData().stringValue(QMediaMetaData::AlbumArtist); !artistName.isEmpty()) {
-            artist->setText(artistName);
+        if(QString artistName = player->metaData().stringValue(QMediaMetaData::ContributingArtist); !artistName.isEmpty()) {
+            artist->setText("   " + artistName);
         }
     });
 
     player->setSource(QUrl::fromLocalFile(path));
-    player->play();
+    player->pause();
 }
 
 void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
     wrapper      = new QWidget(parent);
-    imageLabel   = new QLabel(wrapper);
     pixmap       = QPixmap(path);
     border       = new QWidget(wrapper);
+    viewer       = new QGraphicsView(wrapper);
+    scene        = new QGraphicsScene(viewer);
+    item         = new QGraphicsPixmapItem(pixmap);
     auto *layout = new QVBoxLayout(wrapper);
 
     layout->setContentsMargins(0,0,0,0);
-    layout->addWidget(imageLabel);
+    layout->addWidget(viewer);
 
-    imageLabel->setPixmap(pixmap.scaled(wrapper->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    imageLabel->setScaledContents(false);
-    imageLabel->setAlignment(Qt::AlignCenter);
-    imageLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+    item->setPos(0, 0);
+    scene->addItem(item);
+
+    viewer->setDragMode(QGraphicsView::ScrollHandDrag);
+
+    viewer->setAcceptDrops(true);
+    viewer->installEventFilter(thisInstance);
+    viewer->viewport()->installEventFilter(thisInstance);
+    viewer->viewport()->setAcceptDrops(true);
+
+    viewer->setScene(scene);
+    //viewer->setBackgroundBrush(Qt::white);
+    viewer->setAlignment(Qt::AlignTop);
+    viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+
+    QRectF contentRect = scene->itemsBoundingRect();
+    viewer->setSceneRect(contentRect.adjusted(-5000, -1000, 5000, 1000));
+
 
     wrapper->setAcceptDrops(true);
     wrapper->installEventFilter(thisInstance);
@@ -195,6 +230,9 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     }
 
     doc->load(path);
+    QPdfDocumentRenderOptions opts;
+    opts.setRenderFlags(QPdfDocumentRenderOptions::RenderFlag::Annotations);
+
     //qDebug() << "page count:" << doc->pageCount() << "status:" << doc->status();
     int pageCt = doc->pageCount();
 
@@ -202,13 +240,22 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     for (int i{}; i < pageCt; ++i) {
         QSizeF pageSize = doc->pagePointSize(i);
         QSize renderSize = (pageSize * 2.0).toSize();
-        auto img = doc->render(i, renderSize);
-        QPixmap pix = QPixmap::fromImage(img);
+        auto img = doc->render(i, renderSize, opts);
+        QImage filledImg(renderSize, QImage::Format_RGB32);
+        filledImg.fill(Qt::white);
+        QPainter p(&filledImg);
+        p.drawImage(0, 0, img);
+        p.end();
+        QPixmap pix = QPixmap::fromImage(filledImg);
         auto *item = new QGraphicsPixmapItem(pix);
         item->setPos(0, yOffset);
         scene->addItem(item);
         yOffset += pix.height() + 10;
     }
+
+    //viewer->setSceneRect(QRectF());
+
+    viewer->setDragMode(QGraphicsView::ScrollHandDrag);
 
     viewer->setAcceptDrops(true);
     viewer->installEventFilter(thisInstance);
@@ -218,11 +265,15 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     wrapper->installEventFilter(thisInstance);
     wrapper->setAttribute(Qt::WA_Hover);
     viewer->setScene(scene);
-    viewer->setBackgroundBrush(Qt::white);
+    viewer->setBackgroundBrush(Qt::black);
+    viewer->setAlignment(Qt::AlignTop);
+    viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+
+    QRectF contentRect = scene->itemsBoundingRect();
+    viewer->setSceneRect(contentRect.adjusted(-5000, -500, 5000, 500));
 
     border->setAttribute(Qt::WA_TransparentForMouseEvents);
     border->setGeometry(wrapper->rect());
     border->raise();
 }
-
 
