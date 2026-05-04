@@ -18,7 +18,13 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+
+    connect(ui->actionPlay, &QAction::triggered, this, &MainWindow::play);
+    connect(ui->actionPause, &QAction::triggered, this, &MainWindow::pause);
+    connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openFiles);
+
     installEventFilter(this);
+
     container = new QWidget(this);
     grid = new QGridLayout(container);
     grid->setSpacing(4);
@@ -34,7 +40,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_actionOpen_triggered()
+void MainWindow::openFiles()
 {
     QStringList files = QFileDialog::getOpenFileNames(
         this,
@@ -45,7 +51,7 @@ void MainWindow::on_actionOpen_triggered()
     for (const QString &f : files) addMedia(f);
 }
 
-void MainWindow::on_actionPause_triggered()
+void MainWindow::pause()
 {
     if(!selectedIndices.empty()){
         for(int i = 0; i < (int)selectedIndices.size(); ++i) mediaSlots[selectedIndices[i]]->pause();
@@ -53,14 +59,14 @@ void MainWindow::on_actionPause_triggered()
 
 }
 
-void MainWindow::on_actionPlay_triggered()
+void MainWindow::play()
 {
     if(!selectedIndices.empty()){
         for(int i = 0; i < (int)selectedIndices.size(); ++i) mediaSlots[selectedIndices[i]]->play();
     }
 }
 
-void MainWindow::on_actionReplay_triggered()
+void MainWindow::replay()
 {
     if(!selectedIndices.empty()){
         for(int i = 0; i < (int)selectedIndices.size(); ++i) mediaSlots[selectedIndices[i]]->replay();
@@ -168,7 +174,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             QAction *selectedAct = menu.exec(QCursor::pos());
             if (hoveredIndex != -1 && hoveredIndex == i) removeMedia(hoveredIndex);
             if (selectedAct == closeAct && !selectedIndices.empty()) {
-                for(int j = selectedIndices.size() - 1; j > -1; --j) {
+                for(size_t j = selectedIndices.size() - 1; j > -1; --j) {
                     if (selectedIndices[j] == i) removeMedia(selectedIndices[j]);
                 }
             }
@@ -220,11 +226,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             static bool isPaused  = true;
             if (!selectedIndices.empty()) {
                 if(!isPaused) {
-                    on_actionPause_triggered();
+                    pause();
                     isPaused = true;
                 }
                 else{
-                    on_actionPlay_triggered();
+                    play();
                     isPaused = false;
                 }
             }
@@ -247,7 +253,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
 
         if (e->key() == Qt::Key_R) {
-            on_actionReplay_triggered();
+            replay();
         }
 
         if (e->key() == Qt::Key_F) {

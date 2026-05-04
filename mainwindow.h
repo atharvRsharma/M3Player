@@ -24,16 +24,15 @@ protected:
 
     bool eventFilter(QObject *obj, QEvent *event) override;
 
-private slots:
-    void on_actionOpen_triggered();
-    void on_actionPause_triggered();
-    void on_actionPlay_triggered();
-    void on_actionReplay_triggered();
 
 private:
     void addMedia(const QString &path);
+    void openFiles();
     void rebuildGrid();
     void highlight();
+    void play();
+    void pause();
+    void replay();
     void removeMedia(int index);
     void enterFullscreen(int index);
     void exitFullscreen();

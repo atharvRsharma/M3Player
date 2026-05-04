@@ -5,8 +5,7 @@
 #include <QGridLayout>
 #include <QMenu>
 #include <QMediaMetaData>
-#include <sstream>
-#include <string>
+
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
     static const QStringList vid = {"mp4", "mkv", "avi", "mov"};
