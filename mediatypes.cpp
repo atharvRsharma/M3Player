@@ -138,7 +138,6 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     slider->setEnabled(false);
 
     border->setAttribute(Qt::WA_TransparentForMouseEvents);
-    //border->setGeometry(wrapper->rect());
     border->raise();
 
     int sliderHeight = slider->sizeHint().height();

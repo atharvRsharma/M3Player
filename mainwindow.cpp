@@ -238,7 +238,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
         if (e->key() == Qt::Key_Delete) {
             if (!selectedIndices.empty()) {
-                for(int j = selectedIndices.size() - 1; j > -1; --j) {
+                for(int j = (int)selectedIndices.size() - 1; j >= 0; --j) {
                     removeMedia(selectedIndices[j]);
                 }
             }

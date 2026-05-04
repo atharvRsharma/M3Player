@@ -23,8 +23,8 @@ struct MediaSlot {
     virtual void stop() {}
     virtual void toggleMute() {}
     virtual void replay() {}
-    virtual void toggleMediaControls(bool x) {}
-    virtual void zoom(qreal x) {}
+    virtual void toggleMediaControls(bool) {}
+    virtual void zoom(qreal) {}
     virtual QString type() const = 0;
 
     QWidget *wrapper = nullptr;
