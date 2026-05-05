@@ -328,18 +328,30 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
 
             else {
+                int value = e->key() == Qt::Key_Up ? -40 : e->key() == Qt::Key_Down ? 40 : 0;
+
                 if (fullscreenIndex != -1) {
                     if (e->key() == Qt::Key_Right) mediaSlots[fullscreenIndex]->forward();
                     else if (e->key() == Qt::Key_Left) mediaSlots[fullscreenIndex]->backward();
 
                     else if (e->key() == Qt::Key_Up) {
-                        mediaSlots[fullscreenIndex]->adjustVolume(0.3);
-                        volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
+                        if (mediaSlots[fullscreenIndex]->type() == "pdf") {
+                            mediaSlots[fullscreenIndex]->scroll(value);
+                        }
+                        else {
+                            mediaSlots[fullscreenIndex]->adjustVolume(0.3);
+                            volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
+                        }
                     }
 
                     else if (e->key() == Qt::Key_Down) {
-                        mediaSlots[fullscreenIndex]->adjustVolume(-0.3);
-                        volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
+                        if (mediaSlots[fullscreenIndex]->type() == "pdf") {
+                            mediaSlots[fullscreenIndex]->scroll(value);
+                        }
+                        else {
+                            mediaSlots[fullscreenIndex]->adjustVolume(-0.3);
+                            volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
+                        }
                     }
                 }
 
@@ -348,13 +360,23 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     else if (e->key() == Qt::Key_Left) mediaSlots[0]->backward();
 
                     else if (e->key() == Qt::Key_Up) {
-                        mediaSlots[fullscreenIndex]->adjustVolume(0.3);
-                        volSlider->setValue(mediaSlots[0]->getVolume() * 100);
+                        if (mediaSlots[0]->type() == "pdf") {
+                            mediaSlots[0]->scroll(value);
+                        }
+                        else {
+                            mediaSlots[0]->adjustVolume(0.3);
+                            volSlider->setValue(mediaSlots[0]->getVolume() * 100);
+                        }
                     }
 
                     else if (e->key() == Qt::Key_Down) {
-                        mediaSlots[fullscreenIndex]->adjustVolume(-0.3);
-                        volSlider->setValue(mediaSlots[0]->getVolume() * 100);
+                        if (mediaSlots[0]->type() == "pdf") {
+                            mediaSlots[0]->scroll(value);
+                        }
+                        else {
+                            mediaSlots[0]->adjustVolume(-0.3);
+                            volSlider->setValue(mediaSlots[0]->getVolume() * 100);
+                        }
                     }
                 }
             }

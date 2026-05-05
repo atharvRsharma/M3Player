@@ -20,6 +20,7 @@
 #include <QPdfBookmarkModel>
 #include <QPdfPageNavigator>
 #include <QListView>
+#include <QScrollBar>
 
 
 
@@ -406,7 +407,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     QObject::connect(pageSelector,
                      &QPdfPageSelector::currentPageChanged,
                      thisInstance,
-                     [&](int page) {
+                     [this](int page) {
                          nav->jump(page, {}, nav->currentZoom());
                      });
 
@@ -424,9 +425,10 @@ void PdfSlot::backward() {
     nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
 }
 
-void PdfSlot::goTo(int page) {
-    nav->jump(page, {}, nav->currentZoom());
+void PdfSlot::scroll(int x) {
+    viewer->verticalScrollBar()->setValue( viewer->verticalScrollBar()->value() + (x));
 }
+
 
 //\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 

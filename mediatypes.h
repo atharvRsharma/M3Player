@@ -51,6 +51,7 @@ struct MediaSlot {
     virtual void backward() {}
     virtual float getVolume() const { return 0.0f; }
     virtual void adjustVolume(float) {};
+    virtual void scroll(int) {};
     virtual QMediaPlayer::PlaybackState getPlayerState() const { return QMediaPlayer::StoppedState; }
     virtual QString type() const = 0;
 
@@ -161,11 +162,10 @@ struct PdfSlot : MediaSlot {
     void forward() override;
     void backward() override;
 
-    void goTo(int page);
-
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void zoom(qreal x) override;
+    void scroll(int x) override;
 
     QString type() const override { return "pdf"; }
 };
