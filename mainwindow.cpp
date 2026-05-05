@@ -4,11 +4,15 @@
 
 #include <QFileDialog>
 #include <QDragEnterEvent>
+#include <QGridLayout>
+#include <QSlider>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QKeyEvent>
 #include <QDir>
 #include <QMenu>
+#include <QGraphicsWidget>
+#include <QLabel>
 #include <cmath>
 
 
@@ -18,6 +22,12 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    volSlider = new QSlider(Qt::Horizontal, this);
+    volSlider->setRange(0, 100);
+    volSlider->setValue(100);
+    volSlider->setFixedWidth(100);
+    volSlider->hide();
+    ui->toolBar_2->addWidget(volSlider);
 
     connect(ui->actionPlay, &QAction::triggered, this, &MainWindow::play);
     connect(ui->actionPause, &QAction::triggered, this, &MainWindow::pause);
@@ -33,6 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
     container->installEventFilter(this);
     setCentralWidget(container);
     setFocusPolicy(Qt::StrongFocus);
+
 }
 
 MainWindow::~MainWindow()
@@ -78,7 +89,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     auto findSlotIndex = [&]() -> int {
         auto *w = qobject_cast<QWidget*>(obj);
         while (w) {
-            for (int i = 0; i < (int)mediaSlots.size(); ++i)
+            for (int i = 0; i < (int)mediaSlots.size(); ++i )
                 if (mediaSlots[i]->wrapper == w || mediaSlots[i]->border == w) return i;
             w = w->parentWidget();
         }
@@ -174,7 +185,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             QAction *selectedAct = menu.exec(QCursor::pos());
             if (hoveredIndex != -1 && hoveredIndex == i) removeMedia(hoveredIndex);
             if (selectedAct == closeAct && !selectedIndices.empty()) {
-                for(size_t j = selectedIndices.size() - 1; j > -1; --j) {
+                for(size_t j = selectedIndices.size() - 1; j >= 0; --j) {
                     if (selectedIndices[j] == i) removeMedia(selectedIndices[j]);
                 }
             }
@@ -257,7 +268,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
 
         if (e->key() == Qt::Key_F) {
-            if (fullscreenIndex == -1) enterFullscreen(selectedIndices[0]);
+            if (fullscreenIndex == -1) {
+                enterFullscreen(selectedIndices[0]);
+
+            }
             else exitFullscreen();
         }
 

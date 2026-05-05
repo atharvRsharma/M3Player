@@ -2,7 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QGridLayout>
 #include <vector>
 #include <memory>
 
@@ -12,6 +11,8 @@ QT_END_NAMESPACE
 
 
 struct MediaSlot;
+class QSlider;
+class QGridLayout;
 
 class MainWindow : public QMainWindow
 {
@@ -22,7 +23,6 @@ public:
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
-
 
 private:
     void addMedia(const QString &path);
@@ -39,6 +39,7 @@ private:
     Ui::MainWindow *ui;
     QWidget        *container;
     QGridLayout    *grid;
+    QSlider        *volSlider;
 
     //selection related global vars(TODO get rid of ts </3)
     int hoveredIndex = -1;

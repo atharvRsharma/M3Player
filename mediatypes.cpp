@@ -1,10 +1,22 @@
 #include <mediatypes.h>
 
+#include <QtMultimediaWidgets/QVideoWidget>
+#include <QMediaPlayer>
+#include <QAudioOutput>
+#include <QSlider>
 #include <QFileInfo>
 #include <QMediaDevices>
+#include <QLabel>
 #include <QGridLayout>
 #include <QMenu>
 #include <QMediaMetaData>
+#include <QPdfPageSelector>
+#include <QLineEdit>
+#include <QPdfDocument>
+#include <QGraphicsView>
+#include <QGraphicsWidget>
+
+
 
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
@@ -41,6 +53,11 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
 }
 
 
+//=============================================================================================================
+//=============================================================================================================
+
+//VIDEOVIDEOVIDEO======================================================================================================================
+
 void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
     wrapper = new QWidget(parent);
     video = new QVideoWidget(wrapper);
@@ -75,7 +92,6 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     wrapper->installEventFilter(thisInstance);
     wrapper->setAttribute(Qt::WA_Hover);
 
-
     slider->setEnabled(false);
 
     border->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -91,6 +107,28 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     player->setSource(QUrl::fromLocalFile(path));
     player->pause();
 }
+
+
+void VideoSlot::play() { player->play(); }
+
+void VideoSlot::pause() { player->pause(); }
+
+void VideoSlot::stop() { player->stop(); }
+
+void VideoSlot::replay() { player->setPosition(0); player->play(); }
+
+void VideoSlot::toggleMediaControls(bool x) {
+    slider->setVisible(x);
+}
+
+void VideoSlot::toggleMute() {
+    if (!audio->isMuted()) audio->setMuted(true);
+    else audio->setMuted(false);
+}
+
+//VIDEOVIDEOVIDEO=======================================================================================================
+
+//AUDIOAUDIOAUDIO====================================================================================================================
 
 void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
     wrapper      = new QWidget(parent);
@@ -170,6 +208,33 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     player->pause();
 }
 
+void AudioSlot::play() { player->play(); }
+
+void AudioSlot::pause() { player->pause(); }
+
+void AudioSlot::stop() { player->stop(); }
+
+void AudioSlot::replay() { player->setPosition(0); player->play(); }
+
+void AudioSlot::toggleMute() {
+    if (!audio->isMuted()) audio->setMuted(true);
+    else audio->setMuted(false);
+}
+
+void AudioSlot::toggleMediaControls(bool x) {
+    slider->setVisible(x);
+    artist->setVisible(x);
+    title->setVisible(x);
+    int sliderHeight = x ? slider->sizeHint().height() : 0;
+    int overlayHeight = 60;
+    overlay->setGeometry(0, wrapper->height() - overlayHeight - sliderHeight, wrapper->width(), overlayHeight);
+}
+
+//AUDIOAUDIOAUDIO=======================================================================================================
+
+
+//IMAGEIMAGEIMAGE=================================================================================================================
+
 void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
     wrapper      = new QWidget(parent);
     pixmap       = QPixmap(path);
@@ -193,7 +258,6 @@ void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     viewer->viewport()->setAcceptDrops(true);
 
     viewer->setScene(scene);
-    //viewer->setBackgroundBrush(Qt::white);
     viewer->setAlignment(Qt::AlignTop);
     viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
 
@@ -210,68 +274,99 @@ void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     border->raise();
 }
 
+void ImageSlot::zoom(qreal x)  {
+    qreal newZoom = zoomFactor * x;
+    if (newZoom > 10.0) return;
+    zoomFactor = newZoom;
+    viewer->scale(x, x);
+}
 
+
+//IMAGEIMAGEIMAGE==================================================================================================================
+
+
+//PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
-    wrapper      = new QWidget(parent);
-    viewer       = new QGraphicsView(wrapper);
-    scene        = new QGraphicsScene(viewer);
-    doc          = new QPdfDocument(wrapper);
-    border       = new QWidget(wrapper);
-    auto *layout = new QVBoxLayout(wrapper);
 
-    layout->setContentsMargins(0,0,0,0);
-    layout->addWidget(viewer);
-
-    if (!doc) {
-        return;
-    }
-
-    doc->load(path);
-    QPdfDocumentRenderOptions opts;
-    opts.setRenderFlags(QPdfDocumentRenderOptions::RenderFlag::Annotations);
-
-    //qDebug() << "page count:" << doc->pageCount() << "status:" << doc->status();
-    int pageCt = doc->pageCount();
-
-    qreal yOffset = 0;
-    for (int i{}; i < pageCt; ++i) {
-        QSizeF pageSize = doc->pagePointSize(i);
-        QSize renderSize = (pageSize * 2.0).toSize();
-        auto img = doc->render(i, renderSize, opts);
-        QImage filledImg(renderSize, QImage::Format_RGB32);
-        filledImg.fill(Qt::white);
-        QPainter p(&filledImg);
-        p.drawImage(0, 0, img);
-        p.end();
-        QPixmap pix = QPixmap::fromImage(filledImg);
-        auto *item = new QGraphicsPixmapItem(pix);
-        item->setPos(0, yOffset);
-        scene->addItem(item);
-        yOffset += pix.height() + 10;
-    }
-
-    //viewer->setSceneRect(QRectF());
-
-    viewer->setDragMode(QGraphicsView::ScrollHandDrag);
-
-    viewer->setAcceptDrops(true);
-    viewer->installEventFilter(thisInstance);
-    viewer->viewport()->installEventFilter(thisInstance);
-    viewer->viewport()->setAcceptDrops(true);
-    wrapper->setAcceptDrops(true);
-    wrapper->installEventFilter(thisInstance);
-    wrapper->setAttribute(Qt::WA_Hover);
-    viewer->setScene(scene);
-    viewer->setBackgroundBrush(Qt::black);
-    viewer->setAlignment(Qt::AlignTop);
-    viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
-
-    QRectF contentRect = scene->itemsBoundingRect();
-    viewer->setSceneRect(contentRect.adjusted(-5000, -500, 5000, 500));
-
-    border->setAttribute(Qt::WA_TransparentForMouseEvents);
-    border->setGeometry(wrapper->rect());
-    border->raise();
 }
+
+//PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
+
+
+//PDFPDFPDPFPDFPDF===MINIMAL==============================================================================================================
+
+// void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {    minimal
+//     wrapper      = new QWidget(parent);
+//     viewer       = new QGraphicsView(wrapper);
+//     scene        = new QGraphicsScene(viewer);
+//     doc          = new QPdfDocument(wrapper);
+//     border       = new QWidget(wrapper);
+
+//     pageSelector = new QPdfPageSelector(wrapper);
+//     searchModel = new QPdfSearchModel(wrapper);
+//     searchField = new QLineEdit(wrapper);
+//     //renderer     = new QPdfPageRenderer(wrapper);
+//     auto *layout = new QVBoxLayout(wrapper);
+
+//     layout->setContentsMargins(0,0,0,0);
+//     layout->addWidget(viewer);
+
+//     if (!doc) {
+//         return;
+//     }
+
+//     doc->load(path);
+//     // renderer->setDocument(doc);
+//     // renderer->setRenderMode(QPdfPageRenderer::RenderMode::MultiThreaded);
+
+//     QPdfDocumentRenderOptions opts;
+//     opts.setRenderFlags(QPdfDocumentRenderOptions::RenderFlag::Annotations);
+//     //renderer->requestPage(0, QSize(800, 1000));
+
+//     //qDebug() << "page count:" << doc->pageCount() << "status:" << doc->status();
+//     int pageCt = doc->pageCount();
+
+//     qreal yOffset = 0;
+
+//     for (int i{}; i < pageCt; ++i) {
+//         QSizeF pageSize = doc->pagePointSize(i);
+//         QSize renderSize = (pageSize * 2.0).toSize();
+
+//         auto img = doc->render(i, renderSize, opts);
+//         QImage filledImg(renderSize, QImage::Format_RGB32);
+//         filledImg.fill(Qt::white);
+//         QPainter p(&filledImg);
+//         p.drawImage(0, 0, img);
+//         p.end();
+//         QPixmap pix = QPixmap::fromImage(filledImg);
+//         auto *item = new QGraphicsPixmapItem(pix);
+//         item->setPos(0, yOffset);
+//         scene->addItem(item);
+//         yOffset += pix.height() + 10;
+//     }
+
+//     //viewer->setSceneRect(QRectF());
+
+//     viewer->setDragMode(QGraphicsView::ScrollHandDrag);
+
+//     viewer->setAcceptDrops(true);
+//     viewer->installEventFilter(thisInstance);
+//     viewer->viewport()->installEventFilter(thisInstance);
+//     viewer->viewport()->setAcceptDrops(true);
+//     wrapper->setAcceptDrops(true);
+//     wrapper->installEventFilter(thisInstance);
+//     wrapper->setAttribute(Qt::WA_Hover);
+//     viewer->setScene(scene);
+//     viewer->setBackgroundBrush(Qt::black);
+//     viewer->setAlignment(Qt::AlignTop);
+//     viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+
+//     QRectF contentRect = scene->itemsBoundingRect();
+//     viewer->setSceneRect(contentRect.adjusted(-5000, -500, 5000, 500));
+
+//     border->setAttribute(Qt::WA_TransparentForMouseEvents);
+//     border->setGeometry(wrapper->rect());
+//     border->raise();
+// }
 

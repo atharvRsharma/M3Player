@@ -1,17 +1,31 @@
 #ifndef MEDIATYPES_H
 #define MEDIATYPES_H
 
-#include <QMainWindow>
-#include <QMediaPlayer>
-#include <QAudioOutput>
-#include <QtMultimediaWidgets/QVideoWidget>
-#include <QGraphicsWidget>
-#include <QGraphicsView>
-#include <QSlider>
-#include <QLabel>
-#include <QPdfDocument>
+
+
 
 #include <memory>
+#include <QSize>
+#include <QImage>
+#include <QPixmap>
+
+class QWidget;
+class QPdfView;
+class QPdfSearchModel;
+class QPdfPageSelector;
+class QLineEdit;
+class QPdfDocument;
+class QMediaPlayer;
+class QAudioOutput;
+class QVideoWidget;
+class QLabel;
+class QGraphicsView;
+class QGraphicsPixmapItem;
+class QGraphicsScene;
+class QSlider;
+class QObject;
+class QString;
+
 
 
 
@@ -38,18 +52,14 @@ struct VideoSlot : MediaSlot {
     QVideoWidget *video;
     QSlider      *slider;
 
+
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
-    void play() override { player->play(); }
-    void pause() override { player->pause(); }
-    void stop() override { player->stop(); }
-    void toggleMute() override {
-        if (!audio->isMuted()) audio->setMuted(true);
-        else audio->setMuted(false);
-    }
-    void replay() override { player->setPosition(0); player->play(); }
-    void toggleMediaControls(bool x) override {
-        slider->setVisible(x);
-    }
+    void play() override;
+    void pause() override;
+    void stop() override;
+    void toggleMute() override;
+    void replay() override;
+    void toggleMediaControls(bool x) override;
 
     QString type() const override { return "video"; }
 
@@ -60,28 +70,22 @@ struct AudioSlot : MediaSlot {
     QMediaPlayer *player;
     QAudioOutput *audio;
     QSlider      *slider;
-    QLabel *cover, *title, *artist;
+
+    QLabel       *cover,
+                 *title,
+                 *artist;
 
     QSize        lastSize;
-    QImage coverImage;
+    QImage       coverImage;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
-    void play() override { player->play(); }
-    void pause() override { player->pause(); }
-    void stop() override { player->stop(); }
-    void toggleMute() override {
-        if (!audio->isMuted()) audio->setMuted(true);
-        else audio->setMuted(false);
-    }
-    void replay() override { player->setPosition(0); player->play(); }
-    void toggleMediaControls(bool x) override {
-        slider->setVisible(x);
-        artist->setVisible(x);
-        title->setVisible(x);
-        int sliderHeight = x ? slider->sizeHint().height() : 0;
-        int overlayHeight = 60;
-        overlay->setGeometry(0, wrapper->height() - overlayHeight - sliderHeight, wrapper->width(), overlayHeight);
-    }
+    void play() override;
+    void pause() override;
+    void stop() override;
+    void toggleMute() override;
+
+    void replay() override;
+    void toggleMediaControls(bool x) override;
 
     QString type() const override { return "audio"; }
 
@@ -98,30 +102,31 @@ struct ImageSlot : MediaSlot {
     qreal zoomFactor = 1.0f;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
-    void zoom(qreal x) override {
-        qreal newZoom = zoomFactor * x;
-        if (newZoom > 10.0) return;
-        zoomFactor = newZoom;
-        viewer->scale(x, x);
-    }
+    void zoom(qreal x) override;
     QString type() const override { return "image"; }
 };
 
 struct PdfSlot : MediaSlot {
     QPdfDocument    *doc;
-    QGraphicsView   *viewer;
-    QGraphicsScene  *scene;
+    QPdfView        *view;
+    QPdfPageSelector *pageSelector;
+    QPdfSearchModel *searchModel;
+    QLineEdit *searchField;
+
 
     qreal zoomFactor = 1.0f;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
-    void zoom(qreal x) override {
-        qreal newZoom = zoomFactor * x;
-        if (newZoom > 10.0) return;
-        zoomFactor = newZoom;
-        viewer->scale(x, x);
-    }
+
     QString type() const override { return "pdf"; }
+
+    // void zoom(qreal x) override {
+    //     qreal newZoom = zoomFactor * x;
+    //     if (newZoom > 10.0) return;
+    //     zoomFactor = newZoom;
+    //     viewer->scale(x, x);
+    // }
+
 };
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance);
