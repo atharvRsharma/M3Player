@@ -2,6 +2,9 @@
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,7 +14,11 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>hihih</string>
+   <string>M3Player</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/images/icons/20210928131147.PNG</normaloff>:/images/icons/20210928131147.PNG</iconset>
   </property>
   <widget class="QWidget" name="centralwidget"/>
   <widget class="QToolBar" name="toolBar_2">
@@ -26,11 +33,12 @@
    </attribute>
    <addaction name="actionPause"/>
    <addaction name="separator"/>
-   <addaction name="actionPlay"/>
-   <addaction name="separator"/>
    <addaction name="actionStop"/>
    <addaction name="separator"/>
+   <addaction name="actionPlay"/>
+   <addaction name="separator"/>
    <addaction name="actionNext"/>
+   <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="QToolBar" name="toolBar">

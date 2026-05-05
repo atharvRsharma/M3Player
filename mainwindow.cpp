@@ -13,6 +13,7 @@
 #include <QMenu>
 #include <QGraphicsWidget>
 #include <QLabel>
+#include <QAction>
 #include <cmath>
 
 
@@ -22,16 +23,25 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+
     volSlider = new QSlider(Qt::Horizontal, this);
     volSlider->setRange(0, 100);
     volSlider->setValue(100);
     volSlider->setFixedWidth(100);
-    volSlider->hide();
-    ui->toolBar_2->addWidget(volSlider);
+    volSlider->move(500, 0);
+
+    QWidget *spacer = new QWidget(this);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->toolBar_2->addWidget(spacer);
+
+    action = ui->toolBar_2->addWidget(volSlider);
+    action->setVisible(false);
+
 
     connect(ui->actionPlay, &QAction::triggered, this, &MainWindow::play);
     connect(ui->actionPause, &QAction::triggered, this, &MainWindow::pause);
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openFiles);
+    connect(volSlider, &QSlider::valueChanged, this, &MainWindow::changeVolume);
 
     installEventFilter(this);
 
@@ -82,6 +92,11 @@ void MainWindow::replay()
     if(!selectedIndices.empty()){
         for(int i = 0; i < (int)selectedIndices.size(); ++i) mediaSlots[selectedIndices[i]]->replay();
     }
+}
+
+void MainWindow::changeVolume(int value) {
+    if (fullscreenIndex != -1)
+        mediaSlots[fullscreenIndex]->setVolume(value / 100.0f);
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
@@ -280,31 +295,68 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
 
         if (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down || e->key() == Qt::Key_Left || e->key() == Qt::Key_Right) {
-            int n = static_cast<int>(mediaSlots.size());
-            int cols = static_cast<int>(std::ceil(std::sqrt(n)));
+            bool ctrl = e->modifiers() & Qt::ControlModifier;
+            if(ctrl) {
+                if (mediaSlots.size() > 1) {
+                    int n = static_cast<int>(mediaSlots.size());
+                    int cols = static_cast<int>(std::ceil(std::sqrt(n)));
 
-            if (selectedIndices.empty()) selectedIndices.emplace_back(0);
+                    if (selectedIndices.empty()) selectedIndices.emplace_back(0);
 
-            int row = selectedIndices[0] / cols;
-            int col = selectedIndices[0] % cols;
+                    int row = selectedIndices[0] / cols;
+                    int col = selectedIndices[0] % cols;
 
-            if (e->key() == Qt::Key_Up)         row--;
-            else if (e->key() == Qt::Key_Down)  row++;
-            else if (e->key() == Qt::Key_Right) col++;
-            else if (e->key() == Qt::Key_Left)  col--;
+                    if (e->key() == Qt::Key_Up)         row--;
+                    else if (e->key() == Qt::Key_Down)  row++;
+                    else if (e->key() == Qt::Key_Right) col++;
+                    else if (e->key() == Qt::Key_Left)  col--;
 
-            int newIndex = row * cols + col;
+                    int newIndex = row * cols + col;
 
-            if (newIndex >= 0 && newIndex < n) selectedIndices[0] = newIndex;
+                    if (newIndex >= 0 && newIndex < n) selectedIndices[0] = newIndex;
 
-            if (fullscreenIndex == -1) {
-                mediaSlots[selectedIndices[0]]->toggleMediaControls(true);
-                highlight();
+                    if (fullscreenIndex == -1) {
+                        mediaSlots[selectedIndices[0]]->toggleMediaControls(true);
+                        highlight();
+                    }
+
+                    else {
+                        exitFullscreen();
+                        enterFullscreen(selectedIndices[0]);
+                    }
+                }
             }
 
             else {
-                exitFullscreen();
-                enterFullscreen(selectedIndices[0]);
+                if (fullscreenIndex != -1) {
+                    if (e->key() == Qt::Key_Right) mediaSlots[fullscreenIndex]->forward();
+                    else if (e->key() == Qt::Key_Left) mediaSlots[fullscreenIndex]->backward();
+
+                    else if (e->key() == Qt::Key_Up) {
+                        mediaSlots[fullscreenIndex]->adjustVolume(0.3);
+                        volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
+                    }
+
+                    else if (e->key() == Qt::Key_Down) {
+                        mediaSlots[fullscreenIndex]->adjustVolume(-0.3);
+                        volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
+                    }
+                }
+
+                if (mediaSlots.size() == 1 && (mediaSlots[selectedIndices[0]] == mediaSlots[0])) {
+                    if (e->key() == Qt::Key_Right) mediaSlots[0]->forward();
+                    else if (e->key() == Qt::Key_Left) mediaSlots[0]->backward();
+
+                    else if (e->key() == Qt::Key_Up) {
+                        mediaSlots[fullscreenIndex]->adjustVolume(0.3);
+                        volSlider->setValue(mediaSlots[0]->getVolume() * 100);
+                    }
+
+                    else if (e->key() == Qt::Key_Down) {
+                        mediaSlots[fullscreenIndex]->adjustVolume(-0.3);
+                        volSlider->setValue(mediaSlots[0]->getVolume() * 100);
+                    }
+                }
             }
 
             return true;
@@ -338,6 +390,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
 void MainWindow::enterFullscreen(int index)
 {
+    action->setVisible(true);
+    ui->toolBar_2->update();
     fullscreenIndex = index;
     grid->removeWidget(mediaSlots[index]->wrapper);
     mediaSlots[index]->wrapper->setParent(container);
@@ -346,7 +400,10 @@ void MainWindow::enterFullscreen(int index)
     mediaSlots[index]->wrapper->show();
     for (int i = 0; i < (int)mediaSlots.size(); ++i) {
         if (i != index) {
-            mediaSlots[i]->pause();
+            if (mediaSlots[i]->getPlayerState() == QMediaPlayer::PlayingState){
+                playingIndices.emplace_back(i);
+                mediaSlots[i]->pause();
+            }
             mediaSlots[i]->wrapper->hide();
         }
     }
@@ -354,9 +411,12 @@ void MainWindow::enterFullscreen(int index)
 
 void MainWindow::exitFullscreen()
 {
+    action->setVisible(false);
+    ui->toolBar_2->update();
     mediaSlots[fullscreenIndex]->wrapper->setParent(container);
     rebuildGrid();
-    for (int i = 0; i < (int)mediaSlots.size(); ++i) mediaSlots[i]->play();
+    for (int i = 0; i < (int)playingIndices.size(); ++i) mediaSlots[playingIndices[i]]->play();
+    playingIndices.clear();
     fullscreenIndex = -1;
 }
 

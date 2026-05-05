@@ -10,11 +10,16 @@
 #include <QGridLayout>
 #include <QMenu>
 #include <QMediaMetaData>
+#include <QPdfView>
 #include <QPdfPageSelector>
 #include <QLineEdit>
 #include <QPdfDocument>
 #include <QGraphicsView>
+#include <QPdfSearchModel>
 #include <QGraphicsWidget>
+#include <QPdfBookmarkModel>
+#include <QPdfPageNavigator>
+#include <QListView>
 
 
 
@@ -126,7 +131,42 @@ void VideoSlot::toggleMute() {
     else audio->setMuted(false);
 }
 
-//VIDEOVIDEOVIDEO=======================================================================================================
+void VideoSlot::setVolume(float x) {
+    audio->setVolume(audio->volume() + x);
+}
+
+void VideoSlot::forward() {
+    qint64 current = player->position();
+
+    if (current + seekStep < player->duration()) {
+        player->setPosition(player->position() + seekStep);
+    }
+
+    else {
+        VideoSlot::stop();
+    }
+}
+
+float VideoSlot::getVolume() const  { return currentVolume; }
+
+void VideoSlot::backward() {
+    qint64 current = player->position();
+
+    if (current - seekStep > 0) {
+        player->setPosition(player->position() - seekStep);
+    }
+
+    else {
+        VideoSlot::replay();
+    }
+}
+
+void VideoSlot::adjustVolume(float delta) {
+    currentVolume = std::clamp(currentVolume + delta, 0.0f, 1.0f);
+    audio->setVolume(currentVolume);
+}
+
+//\\VIDEOVIDEOVIDEO=======================================================================================================
 
 //AUDIOAUDIOAUDIO====================================================================================================================
 
@@ -230,8 +270,42 @@ void AudioSlot::toggleMediaControls(bool x) {
     overlay->setGeometry(0, wrapper->height() - overlayHeight - sliderHeight, wrapper->width(), overlayHeight);
 }
 
-//AUDIOAUDIOAUDIO=======================================================================================================
+void AudioSlot::setVolume(float x) {
+    audio->setVolume(x);
+}
 
+void AudioSlot::forward() {
+    qint64 current = player->position();
+
+    if (current + seekStep < player->duration()) {
+        player->setPosition(player->position() + seekStep);
+    }
+
+    else {
+        AudioSlot::stop();
+    }
+}
+
+void AudioSlot::backward() {
+    qint64 current = player->position();
+
+    if (current - seekStep > 0) {
+        player->setPosition(player->position() - seekStep);
+    }
+
+    else{
+        AudioSlot::replay();
+    }
+}
+
+float AudioSlot::getVolume() const  { return currentVolume; }
+
+void AudioSlot::adjustVolume(float delta) {
+    currentVolume = std::clamp(currentVolume + delta, 0.0f, 1.0f);
+    audio->setVolume(currentVolume);
+}
+
+//\\AUDIOAUDIOAUDIO=======================================================================================================
 
 //IMAGEIMAGEIMAGE=================================================================================================================
 
@@ -281,17 +355,81 @@ void ImageSlot::zoom(qreal x)  {
     viewer->scale(x, x);
 }
 
-
-//IMAGEIMAGEIMAGE==================================================================================================================
-
+//\\IMAGEIMAGEIMAGE==================================================================================================================
 
 //PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
+    wrapper         = new QWidget(parent);
+    viewer          = new QPdfView(wrapper);
+    doc             = new QPdfDocument(wrapper);
+    border          = new QWidget(wrapper);
+    pageSelector    = new QPdfPageSelector(wrapper);
+    searchModel     = new QPdfSearchModel(wrapper);
+    //searchField     = new QLineEdit(wrapper);
+    bookmarkModel   = new QPdfBookmarkModel(wrapper);
+
+
+    auto *layout    = new QVBoxLayout(wrapper);
+    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(viewer);
+    layout->addWidget(pageSelector);
+    //layout->addWidget(searchField);
+
+    wrapper->setAcceptDrops(true);
+    wrapper->installEventFilter(thisInstance);
+    wrapper->setAttribute(Qt::WA_Hover);
+
+    viewer->viewport()->installEventFilter(thisInstance);
+    viewer->viewport()->setAcceptDrops(true);
+
+    border->setAttribute(Qt::WA_TransparentForMouseEvents);
+    border->setGeometry(wrapper->rect());
+    border->raise();
+
+    if (!doc) {
+        return;
+    }
+    doc->load(path);
+
+    viewer->setDocument(doc);
+    bookmarkModel->setDocument(doc);
+    pageSelector->setDocument(doc);
+    searchModel->setDocument(doc);
+    nav = viewer->pageNavigator();
+    viewer->setPageMode(QPdfView::PageMode::MultiPage);
+    viewer->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    viewer->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+
+    //QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance, &PdfSlot::goTo);
+    //const auto documentTitle = doc->metaData(QPdfDocument::MetaDataField::Title).toString();
+    QObject::connect(pageSelector,
+                     &QPdfPageSelector::currentPageChanged,
+                     thisInstance,
+                     [&](int page) {
+                         nav->jump(page, {}, nav->currentZoom());
+                     });
 
 }
 
-//PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
+void PdfSlot::zoom(qreal x) {
+    viewer->setZoomFactor(viewer->zoomFactor() * x);
+}
+
+void PdfSlot::forward() {
+    nav->jump(nav->currentPage() + 1, {}, nav->currentZoom());
+}
+
+void PdfSlot::backward() {
+    nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
+}
+
+void PdfSlot::goTo(int page) {
+    nav->jump(page, {}, nav->currentZoom());
+}
+
+//\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
+
 
 
 //PDFPDFPDPFPDFPDF===MINIMAL==============================================================================================================

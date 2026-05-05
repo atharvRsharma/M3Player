@@ -7,12 +7,14 @@
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
+
+class QSlider;
+class QGridLayout;
 QT_END_NAMESPACE
 
 
 struct MediaSlot;
-class QSlider;
-class QGridLayout;
+
 
 class MainWindow : public QMainWindow
 {
@@ -24,14 +26,17 @@ public:
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
 
+private slots:
+    void play();
+    void pause();
+    void replay();
+    void changeVolume(int value);
+
 private:
     void addMedia(const QString &path);
     void openFiles();
     void rebuildGrid();
     void highlight();
-    void play();
-    void pause();
-    void replay();
     void removeMedia(int index);
     void enterFullscreen(int index);
     void exitFullscreen();
@@ -40,12 +45,14 @@ private:
     QWidget        *container;
     QGridLayout    *grid;
     QSlider        *volSlider;
+    QAction        *action;
 
     //selection related global vars(TODO get rid of ts </3)
     int hoveredIndex = -1;
     int fullscreenIndex = -1;
     bool justClicked = false;
     std::vector<int> selectedIndices{};
+    std::vector<int> playingIndices{};
 
 
     std::vector<std::unique_ptr<MediaSlot>> mediaSlots;
