@@ -37,5 +37,6 @@ jobs:
     - name: Build (macOS)
       if: matrix.os == 'macos-latest'
       run: |
+        export PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig
         qmake M3Player.pro
         make -j$(nproc)
