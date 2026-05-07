@@ -24,7 +24,9 @@ jobs:
         sudo make install
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
-      run: brew install taglib
+      run: |
+        brew install taglib pkg-config
+        echo "PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig" >> $GITHUB_ENV
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: vcpkg install taglib:x64-windows
