@@ -15,7 +15,13 @@ jobs:
         modules: 'qtmultimedia qtpdf'
     - name: Install dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
-      run: sudo apt-get install -y libgl1-mesa-dev
+      run: sudo apt-get install -y libgl1-mesa-dev libtag1-dev
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: brew install taglib
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: vcpkg install taglib:x64-windows
     - uses: ilammy/msvc-dev-cmd@v1
       if: matrix.os == 'windows-latest'
     - name: Build (Linux)
