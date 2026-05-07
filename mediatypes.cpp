@@ -67,7 +67,6 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
 
 void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
     wrapper = new QWidget(parent);
-    settings = new QWidget(wrapper);
     video = new QVideoWidget(wrapper);
     slider = new QSlider(Qt::Horizontal, wrapper);
     player = new QMediaPlayer(wrapper);
@@ -83,10 +82,8 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     layout->setContentsMargins(3,3,3,3);
     layout->addWidget(video);
     layout->addWidget(slider);
-    layout->addWidget(subtitleTracks);
-    layout->addWidget(videoTracks);
-    layout->addWidget(audioTracks);
-    layout->addWidget(settings);
+
+
 
     slider->hide();
 
@@ -114,7 +111,7 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     border->setGeometry(wrapper->rect());
     border->raise();
 
-    // settings->setGeometry()
+
 
 
     QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
@@ -259,6 +256,13 @@ void VideoSlot::seek(int sec) {
     player->setPosition(sec);
 }
 
+void VideoSlot::showSettings(QWidget* settingsOverlay) {
+    auto *layout = new QVBoxLayout(settingsOverlay);
+    layout->addWidget(subtitleTracks);
+    layout->addWidget(videoTracks);
+    layout->addWidget(audioTracks);
+}
+
 //\\VIDEOVIDEOVIDEO=======================================================================================================
 
 //AUDIOAUDIOAUDIO====================================================================================================================
@@ -336,9 +340,48 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
             artist->setText("   " + artistName);
         }
     });
+    QObject::connect(player, &QMediaPlayer::metaDataChanged, [this]{
+
+        QMediaMetaData meta = player->metaData();
+
+        for (auto key : meta.keys()) {
+
+            QString keyName = QMediaMetaData::metaDataKeyToString(key);
+
+            //qDebug() << keyName << ":" << meta.value(key);
+
+            if (keyName.contains("lyrics", Qt::CaseInsensitive)) {
+
+                QString lyrics = meta.stringValue(key);
+
+                qDebug() << lyrics;
+            }
+
+            else qDebug() << "hi";
+        }
+    });
 
     player->setSource(QUrl::fromLocalFile(path));
+
     player->pause();
+}
+
+void AudioSlot::getLyrics() {
+    QMediaMetaData meta = player->metaData();
+
+    for (auto key : meta.keys()) {
+
+        QString keyName = QMediaMetaData::metaDataKeyToString(key);
+
+        qDebug() << keyName << ":" << meta.value(key);
+
+        if (keyName.contains("lyrics", Qt::CaseInsensitive)) {
+
+            QString lyrics = meta.stringValue(key);
+
+            qDebug() << lyrics;
+        }
+    }
 }
 
 void AudioSlot::play() { player->play(); }

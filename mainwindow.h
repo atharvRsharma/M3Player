@@ -47,11 +47,13 @@ private:
     QGridLayout    *grid;
     QSlider        *volSlider;
     QAction        *action;
+    QWidget        *settings;
 
     //selection related global vars(TODO get rid of ts </3)
     int hoveredIndex = -1;
     int fullscreenIndex = -1;
     bool justClicked = false;
+    //bool settingsShowing = false;
     std::vector<int> selectedIndices{};
     std::vector<int> playingIndices{};
 

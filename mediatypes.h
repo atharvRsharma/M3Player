@@ -54,13 +54,14 @@ struct MediaSlot {
     virtual void adjustVolume(float) {};
     virtual void scroll(int) {};
     virtual void seek(int) {}
+    virtual void showSettings(QWidget*) {};
     virtual QMediaPlayer::PlaybackState getPlayerState() const { return QMediaPlayer::StoppedState; }
     virtual QString type() const = 0;
 
     QWidget *wrapper = nullptr;
     QWidget *border  = nullptr;
     QWidget *overlay = nullptr;
-    QWidget *settings = nullptr;
+
 };
 
 struct VideoSlot : MediaSlot {
@@ -88,6 +89,7 @@ struct VideoSlot : MediaSlot {
     void backward() override;
     void adjustVolume(float delta) override;
     void seek(int sec) override;
+    void showSettings(QWidget* settingsOverlay) override;
 
     void selectSubtitleStream(int stream);
     void selectVideoStream(int stream);
@@ -135,11 +137,13 @@ struct AudioSlot : MediaSlot {
     void backward() override;
     void adjustVolume(float delta) override;
     void seek(int sec) override;
+    //void showSettings(QWidget* settingsOverlay) override;
 
     QMediaPlayer::PlaybackState getPlayerState() const override {
         return player->playbackState();
     }
 
+    void getLyrics();
 
     QString type() const override { return "audio"; }
 

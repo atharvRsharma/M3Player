@@ -15,12 +15,18 @@
 #include <QLabel>
 #include <QAction>
 #include <cmath>
+#include <taglib/fileref.h>
+
+
 
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    // In main or somewhere early:
+    TagLib::FileRef f("/path/to/test.mp3");
+    qDebug() << f.isNull(); // should print false
     ui->setupUi(this);
 
 
@@ -29,6 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
     volSlider->setValue(100);
     volSlider->setFixedWidth(180);
     volSlider->move(500, 0);
+
 
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -53,6 +60,23 @@ MainWindow::MainWindow(QWidget *parent)
     container->installEventFilter(this);
     setCentralWidget(container);
     setFocusPolicy(Qt::StrongFocus);
+
+    settings = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint);
+    QRect r = container->rect();
+
+    QPoint topRightGlobal =
+        container->mapToGlobal(QPoint(r.width(), 0));
+
+    int settingsWidth = r.width() / 4;
+
+    settings->setGeometry(
+        topRightGlobal.x() - settingsWidth,
+        topRightGlobal.y(),
+        settingsWidth,
+        r.height()
+        );
+
+    settings->hide();
 
 }
 
@@ -291,7 +315,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
 
 
-
         if (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down || e->key() == Qt::Key_Left || e->key() == Qt::Key_Right) {
             bool ctrl = e->modifiers() & Qt::ControlModifier;
             int vertValue = e->key() == Qt::Key_Up ? 1 : e->key() == Qt::Key_Down ? -1 : 0;
@@ -349,6 +372,28 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
         }
 
+        if(e->key() == Qt::Key_C) {
+            if (fullscreenIndex != -1) {
+                if(!settings->isVisible()) {
+                    QRect r = container->rect();
+
+                    QPoint topRightGlobal =
+                        container->mapToGlobal(QPoint(r.width(), 0));
+
+                    int settingsWidth = r.width() / 4;
+
+                    settings->setGeometry(
+                        topRightGlobal.x() - settingsWidth,
+                        topRightGlobal.y(),
+                        settingsWidth,
+                        r.height()
+                        );
+                    settings->setVisible(true);
+                    mediaSlots[fullscreenIndex]->showSettings(settings);
+                }
+                else settings->setVisible(false);
+            }
+        }
 
 
 
@@ -408,6 +453,7 @@ void MainWindow::exitFullscreen()
     rebuildGrid();
     for (int i = 0; i < (int)playingIndices.size(); ++i) mediaSlots[playingIndices[i]]->play();
     playingIndices.clear();
+    if(settings->isVisible()) settings->setVisible(false);
     fullscreenIndex = -1;
 }
 
@@ -417,6 +463,10 @@ void MainWindow::addMedia(const QString &path) {
     if (!slot) return;
     mediaSlots.push_back(std::move(slot));
     //if (fullscreenIndex == -1) rebuildGrid();
+    if(fullscreenIndex != -1) {
+        exitFullscreen();
+        return;
+    }
     rebuildGrid();
 }
 
@@ -460,6 +510,8 @@ void MainWindow::highlight()
             mediaSlots[i]->border->setStyleSheet("border: 3px solid #555555;");
         else
             mediaSlots[i]->border->setStyleSheet("border: none;");
+
+        //mediaSlots[i]->showSettings(container);
     }
 }
 
@@ -470,6 +522,7 @@ void MainWindow::removeMedia(int index){
     grid->removeWidget(mediaSlots[index]->wrapper);
     mediaSlots.erase(mediaSlots.begin() + index);
     selectedIndices.clear();
+    if(volSlider->isVisible()) volSlider->setVisible(false);
     hoveredIndex = -1;
     container->update();
     container->repaint();
