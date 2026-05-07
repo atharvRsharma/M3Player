@@ -6,10 +6,10 @@ CONFIG += c++17
 
 VCPKG_ROOT = C:/vcpkg
 
-INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
-LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib -ltag
 
 win32 {
+    INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
+    LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib -ltag
     VCPKG_BIN = $$VCPKG_ROOT/installed/x64-windows/bin
     DESTDIR_WIN = $$shell_path($$OUT_PWD)
     copytagdll.commands = copy /Y $$shell_path($$VCPKG_BIN/tag.dll) $$DESTDIR_WIN
