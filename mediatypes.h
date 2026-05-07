@@ -31,6 +31,7 @@ class QPdfView;
 class QPdfSearchModel;
 class QPdfBookmarkModel;
 class QPdfPageNavigator;
+class QComboBox;
 QT_END_NAMESPACE
 
 
@@ -52,12 +53,14 @@ struct MediaSlot {
     virtual float getVolume() const { return 0.0f; }
     virtual void adjustVolume(float) {};
     virtual void scroll(int) {};
+    virtual void seek(int) {}
     virtual QMediaPlayer::PlaybackState getPlayerState() const { return QMediaPlayer::StoppedState; }
     virtual QString type() const = 0;
 
     QWidget *wrapper = nullptr;
     QWidget *border  = nullptr;
     QWidget *overlay = nullptr;
+    QWidget *settings = nullptr;
 };
 
 struct VideoSlot : MediaSlot {
@@ -65,6 +68,9 @@ struct VideoSlot : MediaSlot {
     QAudioOutput *audio;
     QVideoWidget *video;
     QSlider      *slider;
+    QComboBox    *audioTracks;
+    QComboBox    *videoTracks;
+    QComboBox    *subtitleTracks;
 
     const qint64 seekStep = 5000;
     float currentVolume = 1.0f;
@@ -81,11 +87,17 @@ struct VideoSlot : MediaSlot {
     void forward() override;
     void backward() override;
     void adjustVolume(float delta) override;
+    void seek(int sec) override;
+
+    void selectSubtitleStream(int stream);
+    void selectVideoStream(int stream);
+    void selectAudioStream(int stream);
+    QString trackName(const QMediaMetaData &metaData, int index);
+    void updateTracks();
 
     QMediaPlayer::PlaybackState getPlayerState() const override {
         return player->playbackState();
     }
-
 
 
     QString type() const override { return "video"; }
@@ -122,6 +134,7 @@ struct AudioSlot : MediaSlot {
     void forward() override;
     void backward() override;
     void adjustVolume(float delta) override;
+    void seek(int sec) override;
 
     QMediaPlayer::PlaybackState getPlayerState() const override {
         return player->playbackState();
@@ -134,30 +147,32 @@ struct AudioSlot : MediaSlot {
 };
 
 struct ImageSlot : MediaSlot {
-    QSize        lastSize;
-    QGraphicsPixmapItem *item;
-    QPixmap      pixmap;
-    QGraphicsView *viewer;
-    QGraphicsScene *scene;
+    QGraphicsPixmapItem     *item;
+    QGraphicsView           *viewer;
+    QGraphicsScene          *scene;
+    QSize                   lastSize;
+    QPixmap                 pixmap;
 
     qreal zoomFactor = 1.0f;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void zoom(qreal x) override;
+
     QString type() const override { return "image"; }
 };
 
 struct PdfSlot : MediaSlot {
 
-    QPdfDocument    *doc;
-    QPdfView        *viewer;
-    QPdfPageSelector *pageSelector;
-    QPdfSearchModel *searchModel;
-    QLineEdit *searchField;
-    QPdfBookmarkModel *bookmarkModel;
-    QPdfPageNavigator *nav;
+    QPdfDocument        *doc;
+    QPdfView            *viewer;
+    QPdfPageSelector    *pageSelector;
+    QPdfSearchModel     *searchModel;
+    QLineEdit           *searchField;
+    QPdfBookmarkModel   *bookmarkModel;
+    QPdfPageNavigator   *nav;
+    QComboBox           *zoomSelector;
 
-    const qreal zoomFactor = qSqrt(2.0);
+    qreal factor;
 
     void forward() override;
     void backward() override;
@@ -166,6 +181,10 @@ struct PdfSlot : MediaSlot {
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void zoom(qreal x) override;
     void scroll(int x) override;
+    void toggleMediaControls(bool x) override;
+    void undo();
+    void redo();
+    void reset();
 
     QString type() const override { return "pdf"; }
 };

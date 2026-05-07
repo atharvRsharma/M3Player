@@ -21,8 +21,9 @@
 #include <QPdfPageNavigator>
 #include <QListView>
 #include <QScrollBar>
-
-
+#include <QComboBox>
+#include <QLineEdit>
+#include <QCoreApplication>
 
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
@@ -66,11 +67,15 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
 
 void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
     wrapper = new QWidget(parent);
+    settings = new QWidget(wrapper);
     video = new QVideoWidget(wrapper);
     slider = new QSlider(Qt::Horizontal, wrapper);
     player = new QMediaPlayer(wrapper);
     audio = new QAudioOutput(wrapper);
     border = new QWidget(wrapper);
+    subtitleTracks = new QComboBox(wrapper);
+    audioTracks = new QComboBox(wrapper);
+    videoTracks = new QComboBox(wrapper);
 
 
 
@@ -78,6 +83,10 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     layout->setContentsMargins(3,3,3,3);
     layout->addWidget(video);
     layout->addWidget(slider);
+    layout->addWidget(subtitleTracks);
+    layout->addWidget(videoTracks);
+    layout->addWidget(audioTracks);
+    layout->addWidget(settings);
 
     slider->hide();
 
@@ -91,6 +100,7 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     video->setAcceptDrops(true);
     video->installEventFilter(thisInstance);
     slider->hide();
+
     for (QObject *child : video->findChildren<QObject*>())
         static_cast<QWidget*>(child)->installEventFilter(thisInstance);
 
@@ -104,13 +114,31 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     border->setGeometry(wrapper->rect());
     border->raise();
 
+    // settings->setGeometry()
+
+
     QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
     QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
     QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
     QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
+    // QObject::connect(player, &QMediaPlayer::seekableChanged, thisInstance, [this] (int sec) {
+    //     seek(sec);
+    // });
+
+    QObject::connect(player, &QMediaPlayer::tracksChanged, thisInstance, [this]() { updateTracks(); });
+
+    QObject::connect(subtitleTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
+                     { selectSubtitleStream(stream); });
+
+    QObject::connect(videoTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
+                     { selectVideoStream(stream); });
+
+    QObject::connect(audioTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
+                     { selectAudioStream(stream); });
 
 
     player->setSource(QUrl::fromLocalFile(path));
+
     player->pause();
 }
 
@@ -165,6 +193,70 @@ void VideoSlot::backward() {
 void VideoSlot::adjustVolume(float delta) {
     currentVolume = std::clamp(currentVolume + delta, 0.0f, 1.0f);
     audio->setVolume(currentVolume);
+}
+
+void VideoSlot::selectSubtitleStream(int stream)
+{
+    stream = subtitleTracks->currentData().toInt();
+    player->setActiveSubtitleTrack(stream);
+}
+
+void VideoSlot::selectVideoStream(int stream)
+{
+    stream = videoTracks->currentData().toInt();
+    player->setActiveVideoTrack(stream);
+}
+
+void VideoSlot::selectAudioStream(int stream)
+{
+    stream = audioTracks->currentData().toInt();
+    player->setActiveAudioTrack(stream);
+}
+
+void VideoSlot::updateTracks() {
+    subtitleTracks->clear();
+    audioTracks->clear();
+    videoTracks->clear();
+
+    const auto subTracks = player->subtitleTracks();
+    const auto audTracks = player->audioTracks();
+    const auto vidTracks = player->videoTracks();
+
+    for (int i = 0; i < vidTracks.size(); ++i)
+        videoTracks->addItem(trackName(vidTracks.at(i), i), i);
+    videoTracks->setCurrentIndex(player->activeVideoTrack() + 1);
+
+    for (int i = 0; i < audTracks.size(); ++i)
+        audioTracks->addItem(trackName(audTracks.at(i), i), i);
+    audioTracks->setCurrentIndex(player->activeAudioTrack() + 1);
+
+    for (int i = 0; i < subTracks.size(); ++i)
+        subtitleTracks->addItem(trackName(subTracks.at(i), i), i);
+    subtitleTracks->setCurrentIndex(player->activeSubtitleTrack() + 1);
+}
+
+QString VideoSlot::trackName(const QMediaMetaData &metaData, int index) {
+    QString name;
+    QString title = metaData.stringValue(QMediaMetaData::Title);
+    QLocale::Language lang = metaData.value(QMediaMetaData::Language).value<QLocale::Language>();
+    using namespace Qt::StringLiterals;
+
+    if (title.isEmpty()) {
+        if (lang == QLocale::Language::AnyLanguage)
+            name = QCoreApplication::translate("VideoSlot", "Track %1").arg(index + 1);
+        else
+            name = QLocale::languageToString(lang);
+    } else {
+        if (lang == QLocale::Language::AnyLanguage)
+            name = title;
+        else
+            name = title + " - ["_L1 + QLocale::languageToString(lang) + u']';
+    }
+    return name;
+}
+
+void VideoSlot::seek(int sec) {
+    player->setPosition(sec);
 }
 
 //\\VIDEOVIDEOVIDEO=======================================================================================================
@@ -306,6 +398,10 @@ void AudioSlot::adjustVolume(float delta) {
     audio->setVolume(currentVolume);
 }
 
+void AudioSlot::seek(int sec) {
+    player->setPosition(sec);
+}
+
 //\\AUDIOAUDIOAUDIO=======================================================================================================
 
 //IMAGEIMAGEIMAGE=================================================================================================================
@@ -369,17 +465,36 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     searchModel     = new QPdfSearchModel(wrapper);
     //searchField     = new QLineEdit(wrapper);
     bookmarkModel   = new QPdfBookmarkModel(wrapper);
+    zoomSelector    = new QComboBox(wrapper);
 
 
     auto *layout    = new QVBoxLayout(wrapper);
     layout->setContentsMargins(0,0,0,0);
     layout->addWidget(viewer);
     layout->addWidget(pageSelector);
+    layout->addWidget(zoomSelector);
+    pageSelector->setVisible(false);
     //layout->addWidget(searchField);
 
     wrapper->setAcceptDrops(true);
     wrapper->installEventFilter(thisInstance);
     wrapper->setAttribute(Qt::WA_Hover);
+
+    zoomSelector->setEditable(true);
+    zoomSelector->addItem(QLatin1String("Fit Width"));
+    zoomSelector->addItem(QLatin1String("Fit Page"));
+    zoomSelector->addItem(QLatin1String("12%"));
+    zoomSelector->addItem(QLatin1String("25%"));
+    zoomSelector->addItem(QLatin1String("33%"));
+    zoomSelector->addItem(QLatin1String("50%"));
+    zoomSelector->addItem(QLatin1String("66%"));
+    zoomSelector->addItem(QLatin1String("75%"));
+    zoomSelector->addItem(QLatin1String("100%"));
+    zoomSelector->addItem(QLatin1String("125%"));
+    zoomSelector->addItem(QLatin1String("150%"));
+    zoomSelector->addItem(QLatin1String("200%"));
+    zoomSelector->addItem(QLatin1String("400%"));
+
 
     viewer->viewport()->installEventFilter(thisInstance);
     viewer->viewport()->setAcceptDrops(true);
@@ -404,16 +519,38 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
 
     //QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance, &PdfSlot::goTo);
     //const auto documentTitle = doc->metaData(QPdfDocument::MetaDataField::Title).toString();
-    QObject::connect(pageSelector,
-                     &QPdfPageSelector::currentPageChanged,
-                     thisInstance,
-                     [this](int page) {
+    QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance,
+                    [this](int page) {
                          nav->jump(page, {}, nav->currentZoom());
+                    });
+
+    QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
+                     [this](const QString &text) {
+                         if (text == QLatin1String("Fit Width")) {
+                            viewer->setZoomMode(QPdfView::ZoomMode::FitToWidth);
+                         } else if (text == QLatin1String("Fit Page")) {
+                            viewer->setZoomMode(QPdfView::ZoomMode::FitInView);
+                         } else {
+                            factor = 1.0;
+
+                            QString withoutPercent(text);
+                            withoutPercent.remove(QLatin1Char('%'));
+
+                            bool ok = false;
+                            const int zoomLevel = withoutPercent.toInt(&ok);
+                            if (ok)
+                                factor = zoomLevel / 100.0;
+
+                            viewer->setZoomMode(QPdfView::ZoomMode::Custom);
+                            viewer->setZoomFactor(factor);
+                         }
                      });
+
 
 }
 
 void PdfSlot::zoom(qreal x) {
+    viewer->setZoomMode(QPdfView::ZoomMode::Custom);
     viewer->setZoomFactor(viewer->zoomFactor() * x);
 }
 
@@ -429,6 +566,22 @@ void PdfSlot::scroll(int x) {
     viewer->verticalScrollBar()->setValue( viewer->verticalScrollBar()->value() + (x));
 }
 
+void PdfSlot::toggleMediaControls(bool x) {
+    pageSelector->setVisible(x);
+}
+
+void PdfSlot::undo() {
+    viewer->pageNavigator()->back();
+}
+
+
+void PdfSlot::redo() {
+    viewer->pageNavigator()->forward();
+}
+
+void PdfSlot::reset() {
+    zoomSelector->setCurrentIndex(8);
+}
 
 //\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 

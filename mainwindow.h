@@ -41,6 +41,7 @@ private:
     void enterFullscreen(int index);
     void exitFullscreen();
 
+
     Ui::MainWindow *ui;
     QWidget        *container;
     QGridLayout    *grid;

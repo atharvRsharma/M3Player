@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     volSlider = new QSlider(Qt::Horizontal, this);
     volSlider->setRange(0, 100);
     volSlider->setValue(100);
-    volSlider->setFixedWidth(100);
+    volSlider->setFixedWidth(180);
     volSlider->move(500, 0);
 
     QWidget *spacer = new QWidget(this);
@@ -249,16 +249,12 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         auto *e = static_cast<QKeyEvent*>(event);
 
         if (e->key() == Qt::Key_Space) {
-            static bool isPaused  = true;
-            if (!selectedIndices.empty()) {
-                if(!isPaused) {
-                    pause();
-                    isPaused = true;
-                }
-                else{
-                    play();
-                    isPaused = false;
-                }
+            for(int i = 0; i < (int)selectedIndices.size(); ++i) {
+                auto state = mediaSlots[selectedIndices[i]]->getPlayerState();
+                if (state == QMediaPlayer::PlayingState)
+                    mediaSlots[selectedIndices[i]]->pause();
+                else
+                    mediaSlots[selectedIndices[i]]->play();
             }
         }
 
@@ -294,95 +290,49 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             if (fullscreenIndex != -1) exitFullscreen();
         }
 
+
+
         if (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down || e->key() == Qt::Key_Left || e->key() == Qt::Key_Right) {
             bool ctrl = e->modifiers() & Qt::ControlModifier;
-            if(ctrl) {
-                if (mediaSlots.size() > 1) {
-                    int n = static_cast<int>(mediaSlots.size());
-                    int cols = static_cast<int>(std::ceil(std::sqrt(n)));
+            int vertValue = e->key() == Qt::Key_Up ? 1 : e->key() == Qt::Key_Down ? -1 : 0;
+            int horValue  = e->key() == Qt::Key_Right ? 1 : e->key() == Qt::Key_Left ? -1 : 0;
 
-                    if (selectedIndices.empty()) selectedIndices.emplace_back(0);
-
-                    int row = selectedIndices[0] / cols;
-                    int col = selectedIndices[0] % cols;
-
-                    if (e->key() == Qt::Key_Up)         row--;
-                    else if (e->key() == Qt::Key_Down)  row++;
-                    else if (e->key() == Qt::Key_Right) col++;
-                    else if (e->key() == Qt::Key_Left)  col--;
-
-                    int newIndex = row * cols + col;
-
-                    if (newIndex >= 0 && newIndex < n) selectedIndices[0] = newIndex;
-
-                    if (fullscreenIndex == -1) {
-                        mediaSlots[selectedIndices[0]]->toggleMediaControls(true);
-                        highlight();
-                    }
-
+            if (fullscreenIndex != -1 && !ctrl) {
+                if (vertValue != 0) {
+                    if (mediaSlots[fullscreenIndex]->type() == "pdf")
+                        mediaSlots[fullscreenIndex]->scroll(vertValue * -40);
                     else {
-                        exitFullscreen();
-                        enterFullscreen(selectedIndices[0]);
+                        mediaSlots[fullscreenIndex]->adjustVolume(vertValue * 0.05f);
+                        volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
                     }
                 }
+                if (horValue != 0)
+                    horValue > 0 ? mediaSlots[fullscreenIndex]->forward() : mediaSlots[fullscreenIndex]->backward();
             }
-
             else {
-                int value = e->key() == Qt::Key_Up ? -40 : e->key() == Qt::Key_Down ? 40 : 0;
-
+                int n = static_cast<int>(mediaSlots.size());
+                int cols = static_cast<int>(std::ceil(std::sqrt(n)));
+                if (selectedIndices.empty()) selectedIndices.emplace_back(0);
+                int oldIndex = selectedIndices[0];
+                int row = oldIndex / cols;
+                int col = oldIndex % cols;
+                row -= vertValue;
+                col += horValue;
+                int newIndex = row * cols + col;
+                if (newIndex >= 0 && newIndex < n) {
+                    mediaSlots[oldIndex]->toggleMediaControls(false);
+                    selectedIndices[0] = newIndex;
+                    mediaSlots[newIndex]->toggleMediaControls(true);
+                }
                 if (fullscreenIndex != -1) {
-                    if (e->key() == Qt::Key_Right) mediaSlots[fullscreenIndex]->forward();
-                    else if (e->key() == Qt::Key_Left) mediaSlots[fullscreenIndex]->backward();
-
-                    else if (e->key() == Qt::Key_Up) {
-                        if (mediaSlots[fullscreenIndex]->type() == "pdf") {
-                            mediaSlots[fullscreenIndex]->scroll(value);
-                        }
-                        else {
-                            mediaSlots[fullscreenIndex]->adjustVolume(0.3);
-                            volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
-                        }
-                    }
-
-                    else if (e->key() == Qt::Key_Down) {
-                        if (mediaSlots[fullscreenIndex]->type() == "pdf") {
-                            mediaSlots[fullscreenIndex]->scroll(value);
-                        }
-                        else {
-                            mediaSlots[fullscreenIndex]->adjustVolume(-0.3);
-                            volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
-                        }
-                    }
+                    exitFullscreen();
+                    enterFullscreen(selectedIndices[0]);
                 }
-
-                if (mediaSlots.size() == 1 && (mediaSlots[selectedIndices[0]] == mediaSlots[0])) {
-                    if (e->key() == Qt::Key_Right) mediaSlots[0]->forward();
-                    else if (e->key() == Qt::Key_Left) mediaSlots[0]->backward();
-
-                    else if (e->key() == Qt::Key_Up) {
-                        if (mediaSlots[0]->type() == "pdf") {
-                            mediaSlots[0]->scroll(value);
-                        }
-                        else {
-                            mediaSlots[0]->adjustVolume(0.3);
-                            volSlider->setValue(mediaSlots[0]->getVolume() * 100);
-                        }
-                    }
-
-                    else if (e->key() == Qt::Key_Down) {
-                        if (mediaSlots[0]->type() == "pdf") {
-                            mediaSlots[0]->scroll(value);
-                        }
-                        else {
-                            mediaSlots[0]->adjustVolume(-0.3);
-                            volSlider->setValue(mediaSlots[0]->getVolume() * 100);
-                        }
-                    }
-                }
+                else highlight();
             }
-
             return true;
         }
+
 
         if (e->key() == Qt::Key_A) {
             bool ctrl = e->modifiers() & Qt::ControlModifier;
@@ -399,6 +349,23 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
         }
 
+
+
+
+        // if (e->key() == Qt::Key_Z || e->key() == Qt::Key_Y) {
+        //     bool ctrl = e->modifiers() & Qt::ControlModifier;
+
+        //     if (fullscreenIndex) {
+        //         if (mediaSlots[fullscreenIndex]->type() == "pdf") {
+        //             auto pdf = dynamic_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+        //             if (ctrl) {
+        //                 if (e->key() == Qt::Key_Y) pdf->redo();
+        //                 if (e->key() == Qt::Key_Z) pdf->undo();
+        //             }
+        //         }
+        //     }
+        // }
+
         if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Plus) {
             if (fullscreenIndex != -1) {
                 qreal factor = e->key() == Qt::Key_Minus ? 0.8 :  e->key() == Qt::Key_Plus ? 1.2 : 1;
@@ -410,11 +377,13 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     return QMainWindow::eventFilter(obj, event);
 }
 
+
 void MainWindow::enterFullscreen(int index)
 {
     action->setVisible(true);
     ui->toolBar_2->update();
     fullscreenIndex = index;
+
     grid->removeWidget(mediaSlots[index]->wrapper);
     mediaSlots[index]->wrapper->setParent(container);
     mediaSlots[index]->wrapper->setGeometry(container->rect());
