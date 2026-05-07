@@ -10,6 +10,7 @@ namespace Ui { class MainWindow; }
 
 class QSlider;
 class QGridLayout;
+class QScrollArea;
 QT_END_NAMESPACE
 
 
@@ -40,6 +41,7 @@ private:
     void removeMedia(int index);
     void enterFullscreen(int index);
     void exitFullscreen();
+    void toggleSettings();
 
 
     Ui::MainWindow *ui;
@@ -48,12 +50,13 @@ private:
     QSlider        *volSlider;
     QAction        *action;
     QWidget        *settings;
-
+    // QScrollArea    *scrollEnabler;
+    QAction        *actionSettings;
     //selection related global vars(TODO get rid of ts </3)
     int hoveredIndex = -1;
     int fullscreenIndex = -1;
     bool justClicked = false;
-    //bool settingsShowing = false;
+
     std::vector<int> selectedIndices{};
     std::vector<int> playingIndices{};
 

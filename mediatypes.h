@@ -114,7 +114,8 @@ struct AudioSlot : MediaSlot {
 
     QLabel       *cover,
                  *title,
-                 *artist;
+                 *artist,
+                 *lyrics;
 
     QSize        lastSize;
     QImage       coverImage;
@@ -137,13 +138,13 @@ struct AudioSlot : MediaSlot {
     void backward() override;
     void adjustVolume(float delta) override;
     void seek(int sec) override;
-    //void showSettings(QWidget* settingsOverlay) override;
+    void showSettings(QWidget* settingsOverlay) override;
 
     QMediaPlayer::PlaybackState getPlayerState() const override {
         return player->playbackState();
     }
 
-    void getLyrics();
+    QString getLyrics(const QString &filePath);
 
     QString type() const override { return "audio"; }
 

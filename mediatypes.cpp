@@ -24,6 +24,11 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QCoreApplication>
+#include <taglib/fileref.h>
+#include <taglib/tag.h>
+#include <taglib/id3v2tag.h>
+#include <taglib/unsynchronizedlyricsframe.h>
+#include <taglib/mpegfile.h>
 
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
@@ -274,6 +279,7 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     slider       = new QSlider(Qt::Horizontal, wrapper);
     cover        = new QLabel(wrapper);
     title        = new QLabel(wrapper);
+    lyrics       = new QLabel(wrapper);
     artist       = new QLabel(wrapper);
     overlay      = new QWidget(wrapper);
     border       = new QWidget(wrapper);
@@ -340,48 +346,30 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
             artist->setText("   " + artistName);
         }
     });
-    QObject::connect(player, &QMediaPlayer::metaDataChanged, [this]{
 
-        QMediaMetaData meta = player->metaData();
-
-        for (auto key : meta.keys()) {
-
-            QString keyName = QMediaMetaData::metaDataKeyToString(key);
-
-            //qDebug() << keyName << ":" << meta.value(key);
-
-            if (keyName.contains("lyrics", Qt::CaseInsensitive)) {
-
-                QString lyrics = meta.stringValue(key);
-
-                qDebug() << lyrics;
-            }
-
-            else qDebug() << "hi";
-        }
-    });
+    if (QString lyric = getLyrics(path); !lyric.isEmpty()) {
+        lyrics->setText(lyric);
+        lyrics->setVisible(false);
+    }
 
     player->setSource(QUrl::fromLocalFile(path));
 
     player->pause();
 }
 
-void AudioSlot::getLyrics() {
-    QMediaMetaData meta = player->metaData();
+QString AudioSlot::getLyrics(const QString &filePath) {
+    TagLib::MPEG::File file(filePath.toUtf8().constData());
+    auto *tag = file.ID3v2Tag();
+    if (!tag) return {};
 
-    for (auto key : meta.keys()) {
 
-        QString keyName = QMediaMetaData::metaDataKeyToString(key);
+    auto frames = tag->frameListMap()["USLT"];
+    if (frames.isEmpty()) return {};
 
-        qDebug() << keyName << ":" << meta.value(key);
+    auto *frame = dynamic_cast<TagLib::ID3v2::UnsynchronizedLyricsFrame*>(frames.front());
+    if (!frame) return {};
 
-        if (keyName.contains("lyrics", Qt::CaseInsensitive)) {
-
-            QString lyrics = meta.stringValue(key);
-
-            qDebug() << lyrics;
-        }
-    }
+    return QString::fromStdWString(frame->text().toWString());
 }
 
 void AudioSlot::play() { player->play(); }
@@ -444,6 +432,29 @@ void AudioSlot::adjustVolume(float delta) {
 void AudioSlot::seek(int sec) {
     player->setPosition(sec);
 }
+
+void AudioSlot::showSettings(QWidget* settingsOverlay) {
+    if (settingsOverlay->layout()) return;
+
+    lyrics->setParent(nullptr);
+    lyrics->setWordWrap(true);
+    lyrics->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+
+    auto *scrollArea = new QScrollArea(settingsOverlay);
+    scrollArea->setWidget(lyrics);
+    scrollArea->setWidgetResizable(true);
+
+    auto *layout = new QVBoxLayout(settingsOverlay);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(scrollArea);
+}
+
+// void AudioSlot::showSettings(QWidget* settingsOverlay) {
+//     auto *layout = new QVBoxLayout(settingsOverlay);
+//     QScrollArea *scroll = new QScrollArea;
+
+//     layout->addWidget(lyrics);
+// }
 
 //\\AUDIOAUDIOAUDIO=======================================================================================================
 

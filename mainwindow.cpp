@@ -15,41 +15,40 @@
 #include <QLabel>
 #include <QAction>
 #include <cmath>
-#include <taglib/fileref.h>
-
-
+#include <QScrollArea>
+#include <QStyle>
 
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-    // In main or somewhere early:
-    TagLib::FileRef f("/path/to/test.mp3");
-    qDebug() << f.isNull(); // should print false
     ui->setupUi(this);
-
 
     volSlider = new QSlider(Qt::Horizontal, this);
     volSlider->setRange(0, 100);
     volSlider->setValue(100);
     volSlider->setFixedWidth(180);
-    volSlider->move(500, 0);
 
-
-    QWidget *spacer = new QWidget(this);
+    QWidget *spacer = new QWidget();
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     ui->toolBar_2->addWidget(spacer);
+
+    QWidget *spacer1 = new QWidget();
+    spacer1->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ui->toolBar->addWidget(spacer1);
 
     action = ui->toolBar_2->addWidget(volSlider);
     action->setVisible(false);
 
+    actionSettings = new QAction(QIcon(":/images/icons/menu.png"), "", this);
+    ui->toolBar->addAction(actionSettings);
 
-    connect(ui->actionPlay, &QAction::triggered, this, &MainWindow::play);
-    connect(ui->actionPause, &QAction::triggered, this, &MainWindow::pause);
-    connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openFiles);
-    connect(volSlider, &QSlider::valueChanged, this, &MainWindow::changeVolume);
-
+    connect(ui->actionPlay,     &QAction::triggered, this, &MainWindow::play);
+    connect(ui->actionPause,    &QAction::triggered, this, &MainWindow::pause);
+    connect(ui->actionOpen,     &QAction::triggered, this, &MainWindow::openFiles);
+    connect(actionSettings,     &QAction::triggered, this, &MainWindow::toggleSettings);
+    connect(volSlider,          &QSlider::valueChanged, this, &MainWindow::changeVolume);
     installEventFilter(this);
 
     container = new QWidget(this);
@@ -63,23 +62,16 @@ MainWindow::MainWindow(QWidget *parent)
 
     settings = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint);
     QRect r = container->rect();
-
-    QPoint topRightGlobal =
-        container->mapToGlobal(QPoint(r.width(), 0));
-
+    QPoint topRightGlobal = container->mapToGlobal(QPoint(r.width(), 0));
     int settingsWidth = r.width() / 4;
-
     settings->setGeometry(
         topRightGlobal.x() - settingsWidth,
         topRightGlobal.y(),
         settingsWidth,
         r.height()
         );
-
     settings->hide();
-
 }
-
 MainWindow::~MainWindow()
 {
     delete ui;
@@ -373,26 +365,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
 
         if(e->key() == Qt::Key_C) {
-            if (fullscreenIndex != -1) {
-                if(!settings->isVisible()) {
-                    QRect r = container->rect();
-
-                    QPoint topRightGlobal =
-                        container->mapToGlobal(QPoint(r.width(), 0));
-
-                    int settingsWidth = r.width() / 4;
-
-                    settings->setGeometry(
-                        topRightGlobal.x() - settingsWidth,
-                        topRightGlobal.y(),
-                        settingsWidth,
-                        r.height()
-                        );
-                    settings->setVisible(true);
-                    mediaSlots[fullscreenIndex]->showSettings(settings);
-                }
-                else settings->setVisible(false);
-            }
+            toggleSettings();
         }
 
 
@@ -422,6 +395,29 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     return QMainWindow::eventFilter(obj, event);
 }
 
+void MainWindow::toggleSettings() {
+    if (fullscreenIndex != -1) {
+
+        if(!settings->isVisible()) {
+            QRect r = container->rect();
+
+            QPoint topRightGlobal =
+                container->mapToGlobal(QPoint(r.width(), 0));
+
+            int settingsWidth = r.width() / 4;
+
+            settings->setGeometry(
+                topRightGlobal.x() - settingsWidth,
+                topRightGlobal.y(),
+                settingsWidth,
+                r.height()
+                );
+            settings->setVisible(true);
+            mediaSlots[fullscreenIndex]->showSettings(settings);
+        }
+        else settings->setVisible(false);
+    }
+}
 
 void MainWindow::enterFullscreen(int index)
 {
