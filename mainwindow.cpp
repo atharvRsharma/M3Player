@@ -17,6 +17,8 @@
 #include <cmath>
 #include <QScrollArea>
 #include <QStyle>
+#include <QLineEdit>
+#include <QComboBox>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -49,6 +51,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionOpen,     &QAction::triggered, this, &MainWindow::openFiles);
     connect(actionSettings,     &QAction::triggered, this, &MainWindow::toggleSettings);
     connect(volSlider,          &QSlider::valueChanged, this, &MainWindow::changeVolume);
+
     installEventFilter(this);
 
     container = new QWidget(this);
@@ -253,6 +256,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     return true;
                 }
 
+
+
                 if (mediaSlots[i]->wrapper == obj) {
                     mediaSlots[i]->border->setGeometry(mediaSlots[i]->wrapper->rect());
                     break;
@@ -260,6 +265,16 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
         }
         else {
+            if (mediaSlots[fullscreenIndex]->type() == "pdf" && mediaSlots[fullscreenIndex]->wrapper == obj) {
+                auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+                if (pdf->findBar->isVisible()) {
+                    int barH = pdf->findBar->sizeHint().height();
+                    pdf->findBar->setGeometry(0, pdf->wrapper->height() - barH * 2 - pdf->zoomSelector->height() - 4,
+                                              pdf->findBar->maximumWidth(), barH);
+                }
+                pdf->border->setGeometry(pdf->wrapper->rect());
+                return true;
+            }
             mediaSlots[fullscreenIndex]->wrapper->setGeometry(container->rect());
             mediaSlots[fullscreenIndex]->border->setGeometry(mediaSlots[fullscreenIndex]->wrapper->rect());
         }
@@ -301,15 +316,27 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
 
         if (e->key() == Qt::Key_F) {
-            if (fullscreenIndex == -1) {
-                enterFullscreen(selectedIndices[0]);
-
+            if (e->key() == Qt::Key_F && e->modifiers() & Qt::ControlModifier) {
+                if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
+                    auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+                    pdf->enableSearch(true);
+                }
             }
-            else exitFullscreen();
+            else if(e->key() == Qt::Key_F && !e->modifiers()) {
+                if (fullscreenIndex == -1) {
+                    enterFullscreen(selectedIndices[0]);
+
+                }
+                else exitFullscreen();
+            }
         }
 
         if(e->key() == Qt::Key_Escape) {
-            if (fullscreenIndex != -1) exitFullscreen();
+            if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
+                auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+                pdf->enableSearch(false);
+            }
+            else if (fullscreenIndex != -1) exitFullscreen();
         }
 
 
@@ -533,5 +560,4 @@ void MainWindow::removeMedia(int index){
 }
 
 //TODO removal of media thru context menus is borderline unusable, need to figure out right->left
-//sequece and get exact position of context menu and its options
-
+//sequence and get exact position of context menu and its options

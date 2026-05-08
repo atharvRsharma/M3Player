@@ -2,7 +2,7 @@
 #define MEDIATYPES_H
 
 
-#include "qstyleditemdelegate.h"
+//#include "qstyleditemdelegate.h"
 #include <memory>
 
 #include <QString>
@@ -10,6 +10,7 @@
 #include <QImage>
 #include <QPixmap>
 #include <QMediaPlayer>
+
 
 
 QT_BEGIN_NAMESPACE
@@ -36,12 +37,13 @@ class QToolBar;
 class QListView;
 class QStyledItemDelegate;
 class QTimer;
+class QPushButton;
 QT_END_NAMESPACE
 
 
 
 
-struct MediaSlot {
+struct MediaSlot  {
     virtual ~MediaSlot() = default;
     virtual void load(const QString &path, QWidget *parent, QObject *thisInstance) = 0;
     virtual void play() {}
@@ -65,7 +67,6 @@ struct MediaSlot {
     QWidget *wrapper = nullptr;
     QWidget *border  = nullptr;
     QWidget *overlay = nullptr;
-
 };
 
 struct VideoSlot : MediaSlot {
@@ -171,7 +172,7 @@ struct ImageSlot : MediaSlot {
 };
 
 struct PdfSlot : MediaSlot {
-    QWidget             *searchResultsTab;
+    QWidget             *findBar;
     QPdfDocument        *doc;
     QPdfView            *viewer;
     QPdfPageSelector    *pageSelector;
@@ -183,32 +184,36 @@ struct PdfSlot : MediaSlot {
     QToolBar            *searchToolBar;
     QListView           *searchResultsView;
     QTimer              *timer;
+    QPushButton         *findNext;
+    QPushButton         *findPrev;
+    QPushButton         *findClose;
+
     QString             pendingSearch;
+    int          currentResultIndex = -1;
 
     qreal factor;
 
+    void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void forward() override;
     void backward() override;
-
-
-    void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void zoom(qreal x) override;
     void scroll(int x) override;
     void toggleMediaControls(bool x) override;
-    void undo();
-    void redo();
-    void reset();
-    void menuZoom(const QString &text);
-    void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
 
     QString type() const override { return "pdf"; }
 
+    void undo();
+    void redo();
+    void reset();
+    void nextResult();
+    void prevResult();
+    void menuZoom(const QString &text);
+    void jumpToResult(int i);
+    void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
+    void enableSearch(bool x);
 
-    struct Delegate : public QStyledItemDelegate {
-        using QStyledItemDelegate::QStyledItemDelegate;
-        void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
-    };
-
+    //mixing override(s)
+    //void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
 };
 
 // struct PdfSlotMinimal : MediaSlot {

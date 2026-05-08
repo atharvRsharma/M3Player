@@ -31,6 +31,7 @@
 #include <QToolBar>
 #include <QItemSelectionModel>
 #include <QTimer>
+#include <QPushButton>
 
 
 #include <taglib/fileref.h>
@@ -522,27 +523,42 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     timer             = new QTimer(wrapper);
     searchModel       = new QPdfSearchModel(wrapper);
     searchField       = new QLineEdit(wrapper);
-    //searchResultsTab  = new QWidget(wrapper);
-    searchToolBar =     new QToolBar("toolBar", wrapper);
-    searchResultsView = new QListView(wrapper);
-    //bookmarkModel   = new QPdfBookmarkModel(wrapper);
+    //searchToolBar     = new QToolBar("toolBar", wrapper);
     zoomSelector      = new QComboBox(wrapper);
+    findBar           = new QWidget(wrapper);
+    findPrev          = new QPushButton("<-", findBar);
+    findNext          = new QPushButton("->", findBar);
+    findClose         = new QPushButton("x", findBar);
+    //bookmarkModel   = new QPdfBookmarkModel(wrapper);
 
-    //TODO: bookmarkModel adn qtreeview for index
+    //TODO: bookmarkModel and qtreeview for index
 
 
 
-    searchResultsView->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
 
-
-
-    auto *layout    = new QVBoxLayout(wrapper);
+    auto *layout = new QVBoxLayout(wrapper);
     layout->setContentsMargins(0,0,0,0);
     layout->addWidget(viewer);
     layout->addWidget(pageSelector);
     layout->addWidget(zoomSelector);
-    layout->addWidget(searchField);
-    layout->addWidget(searchResultsView);
+    //layout->addWidget(searchField);
+
+
+    auto *findLayout = new QHBoxLayout(findBar);
+    findLayout->setContentsMargins(4, 2, 4, 2);
+    findLayout->setSpacing(4);
+    findLayout->addWidget(searchField);
+    findLayout->addWidget(findPrev);
+    findLayout->addWidget(findNext);
+    findLayout->addWidget(findClose);
+
+    findBar->setMaximumWidth(420);
+    findBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    findBar->raise();
+    findBar->hide();
+
+
+    //searchField->hide();
 
     pageSelector->setVisible(false);
 
@@ -594,7 +610,16 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
 
     searchField->setPlaceholderText(QString("Find in document"));
     searchField->setMaximumWidth(400);
-    searchResultsView->setModel(searchModel);
+
+    QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this]() {
+        nextResult();
+    });
+    QObject::connect(findPrev, &QPushButton::clicked, thisInstance, [this]() {
+        prevResult();
+    });
+    QObject::connect(findClose, &QPushButton::clicked, thisInstance, [this]() {
+        enableSearch(false);
+    });
 
     //QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance, &PdfSlot::goTo);
     //const auto documentTitle = doc->metaData(QPdfDocument::MetaDataField::Title).toString();
@@ -602,19 +627,6 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
                     [this](int page) {
                          nav->jump(page, {}, nav->currentZoom());
                     });
-
-    QObject::connect(searchResultsView->selectionModel(), &QItemSelectionModel::currentChanged, thisInstance,
-                     [this](const QModelIndex &current, const QModelIndex &previous) {
-        Q_UNUSED(previous);
-        if (!current.isValid())
-            return;
-
-        const int page = current.data(int(QPdfSearchModel::Role::Page)).toInt();
-        const QPointF location = current.data(int(QPdfSearchModel::Role::Location)).toPointF();
-        viewer->pageNavigator()->jump(page, location);
-        viewer->setCurrentSearchResultIndex(current.row());
-                     });
-
 
 
     QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
@@ -625,14 +637,46 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
 
     QObject::connect(searchField, &QLineEdit::textEdited, thisInstance, [this](const QString &text) {
         searchModel->setSearchString(text);
-        pendingSearch = text;
+        currentResultIndex = -1;
     });
 
     QObject::connect(timer, &QTimer::timeout, thisInstance, [this]() {
         searchModel->setSearchString(pendingSearch);
     });
 
-    searchResultsView->setItemDelegate(new Delegate(searchResultsView));
+}
+
+void PdfSlot::searchResultsChanged(const QModelIndex &current, const QModelIndex &previous) {
+    Q_UNUSED(previous);
+    if (!current.isValid())
+        return;
+    const int page = current.data(int(QPdfSearchModel::Role::Page)).toInt();
+    const QPointF location = current.data(int(QPdfSearchModel::Role::Location)).toPointF();
+    viewer->pageNavigator()->jump(page, location);
+    viewer->setCurrentSearchResultIndex(current.row());
+}
+
+void PdfSlot::nextResult() {
+    int count = searchModel->rowCount(QModelIndex());
+    if (count == 0) return;
+    currentResultIndex = (currentResultIndex + 1) % count;
+    jumpToResult(currentResultIndex);
+}
+
+void PdfSlot::prevResult() {
+    int count = searchModel->rowCount(QModelIndex());
+    if (count == 0) return;
+    currentResultIndex = (currentResultIndex - 1 + count) % count;
+    jumpToResult(currentResultIndex);
+}
+
+void PdfSlot::jumpToResult(int i) {
+    QModelIndex idx = searchModel->index(i, 0);
+    if (!idx.isValid()) return;
+    const int page = idx.data(int(QPdfSearchModel::Role::Page)).toInt();
+    const QPointF loc = idx.data(int(QPdfSearchModel::Role::Location)).toPointF();
+    nav->jump(page, loc);
+    viewer->setCurrentSearchResultIndex(i);
 }
 
 void PdfSlot::menuZoom(const QString &text) {
@@ -655,8 +699,7 @@ void PdfSlot::menuZoom(const QString &text) {
         if (ok)
             factor = zoomLevel / 100.0;
 
-        viewer->setZoomMode(QPdfView::ZoomMode::Custom);
-        viewer->setZoomFactor(factor);
+        zoom(factor);
     }
 }
 
@@ -695,35 +738,18 @@ void PdfSlot::reset() {
     zoomSelector->setCurrentIndex(8);
 }
 
-
-void PdfSlot::Delegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
-    const QString displayText = index.data().toString();
-    const auto boldBegin = displayText.indexOf(u"<b>", 0, Qt::CaseInsensitive) + 3;
-    const auto boldEnd = displayText.indexOf(u"</b>", boldBegin, Qt::CaseInsensitive);
-    if (boldBegin >= 3 && boldEnd > boldBegin) {
-        const QString pageLabel = tr("Page %1: ").arg(index.data(int(QPdfSearchModel::Role::Page)).toInt());
-        const QString boldText = displayText.mid(boldBegin, boldEnd - boldBegin);
-        if (option.state & QStyle::State_Selected)
-            painter->fillRect(option.rect, option.palette.highlight());
-        const QFont defaultFont = painter->font();
-        QFontMetrics fm = painter->fontMetrics();
-        auto pageLabelWidth = fm.horizontalAdvance(pageLabel);
-        const int yOffset = (option.rect.height() - fm.height()) / 2 + fm.ascent();
-        painter->drawText(0, option.rect.y() + yOffset, pageLabel);
-        QFont boldFont = defaultFont;
-        boldFont.setBold(true);
-        auto boldWidth = QFontMetrics(boldFont).horizontalAdvance(boldText);
-        auto prefixSuffixWidth = (option.rect.width() - pageLabelWidth - boldWidth) / 2;
-        painter->setFont(boldFont);
-        painter->drawText(pageLabelWidth + prefixSuffixWidth, option.rect.y() + yOffset, boldText);
-        painter->setFont(defaultFont);
-        const QString suffix = fm.elidedText(displayText.mid(boldEnd + 4), Qt::ElideRight, prefixSuffixWidth);
-        painter->drawText(pageLabelWidth + prefixSuffixWidth + boldWidth, option.rect.y() + yOffset, suffix);
-        const QString prefix = fm.elidedText(displayText.left(boldBegin - 3), Qt::ElideLeft, prefixSuffixWidth);
-        painter->drawText(pageLabelWidth + prefixSuffixWidth - fm.horizontalAdvance(prefix),
-                          option.rect.y() + yOffset, prefix);
+void PdfSlot::enableSearch(bool x) {
+    findBar->setVisible(x);
+    if (x) {
+        int barH = findBar->sizeHint().height();
+        findBar->setGeometry(0, wrapper->height() - barH * 2 - zoomSelector->height() - 4,
+                             findBar->maximumWidth(), barH);
+        searchField->setFocus();
+        searchField->selectAll();
     } else {
-        QStyledItemDelegate::paint(painter, option, index);
+        searchField->clear();
+        searchModel->setSearchString("");
+        currentResultIndex = -1;
     }
 }
 
