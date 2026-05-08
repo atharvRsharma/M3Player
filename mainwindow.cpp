@@ -226,36 +226,42 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     }
 
     if (event->type() == QEvent::Resize) {
-        for (int i = 0; i < (int)mediaSlots.size(); ++i) {
-            if (mediaSlots[i]->type() == "image" && mediaSlots[i]->wrapper == obj) {
-                auto *img = dynamic_cast<ImageSlot*>(mediaSlots[i].get());
-                QSize newSize = img->wrapper->size();
-                if (newSize != img->lastSize) {
-                    img->lastSize = newSize;
-                    img->item->setPixmap(img->pixmap.scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        if (fullscreenIndex == -1) {
+            for (int i = 0; i < (int)mediaSlots.size(); ++i) {
+                if (mediaSlots[i]->type() == "image" && mediaSlots[i]->wrapper == obj) {
+                    auto *img = dynamic_cast<ImageSlot*>(mediaSlots[i].get());
+                    QSize newSize = img->wrapper->size();
+                    if (newSize != img->lastSize) {
+                        img->lastSize = newSize;
+                        img->item->setPixmap(img->pixmap.scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                    }
+                    img->border->setGeometry(img->wrapper->rect());
+                    return true;
                 }
-                img->border->setGeometry(img->wrapper->rect());
-                return true;
-            }
 
-            if (mediaSlots[i]->type() == "audio" && mediaSlots[i]->wrapper == obj) {
-                auto *aud = static_cast<AudioSlot*>(mediaSlots[i].get());
-                QSize newSize = aud->wrapper->size();
-                if (newSize != aud->lastSize) {
-                    aud->lastSize = newSize;
-                    if (!aud->coverImage.isNull())
-                        aud->cover->setPixmap(QPixmap::fromImage(aud->coverImage).scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                if (mediaSlots[i]->type() == "audio" && mediaSlots[i]->wrapper == obj) {
+                    auto *aud = static_cast<AudioSlot*>(mediaSlots[i].get());
+                    QSize newSize = aud->wrapper->size();
+                    if (newSize != aud->lastSize) {
+                        aud->lastSize = newSize;
+                        if (!aud->coverImage.isNull())
+                            aud->cover->setPixmap(QPixmap::fromImage(aud->coverImage).scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                    }
+                    int sliderHeight = aud->slider->isVisible() ? aud->slider->height() : 0;
+                    aud->overlay->setGeometry(0, aud->wrapper->height() - 60 - sliderHeight, aud->wrapper->width(), 60);
+                    aud->border->setGeometry(aud->wrapper->rect());
+                    return true;
                 }
-                int sliderHeight = aud->slider->isVisible() ? aud->slider->height() : 0;
-                aud->overlay->setGeometry(0, aud->wrapper->height() - 60 - sliderHeight, aud->wrapper->width(), 60);
-                aud->border->setGeometry(aud->wrapper->rect());
-                return true;
-            }
 
-            if (mediaSlots[i]->wrapper == obj) {
-                mediaSlots[i]->border->setGeometry(mediaSlots[i]->wrapper->rect());
-                break;
+                if (mediaSlots[i]->wrapper == obj) {
+                    mediaSlots[i]->border->setGeometry(mediaSlots[i]->wrapper->rect());
+                    break;
+                }
             }
+        }
+        else {
+            mediaSlots[fullscreenIndex]->wrapper->setGeometry(container->rect());
+            mediaSlots[fullscreenIndex]->border->setGeometry(mediaSlots[fullscreenIndex]->wrapper->rect());
         }
     }
 
@@ -421,7 +427,8 @@ void MainWindow::toggleSettings() {
 
 void MainWindow::enterFullscreen(int index)
 {
-    action->setVisible(true);
+    if (mediaSlots[index]->type() != "pdf" || mediaSlots[index]->type() != "image") action->setVisible(true);
+    else action->setVisible(false);
     ui->toolBar_2->update();
     fullscreenIndex = index;
 

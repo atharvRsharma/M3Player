@@ -24,6 +24,15 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QCoreApplication>
+#include <QFontMetrics>
+#include <QPainter>
+#include <QPdfSearchModel>
+#include <QStyledItemDelegate>
+#include <QToolBar>
+#include <QItemSelectionModel>
+#include <QTimer>
+
+
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
 #include <taglib/id3v2tag.h>
@@ -449,12 +458,6 @@ void AudioSlot::showSettings(QWidget* settingsOverlay) {
     layout->addWidget(scrollArea);
 }
 
-// void AudioSlot::showSettings(QWidget* settingsOverlay) {
-//     auto *layout = new QVBoxLayout(settingsOverlay);
-//     QScrollArea *scroll = new QScrollArea;
-
-//     layout->addWidget(lyrics);
-// }
 
 //\\AUDIOAUDIOAUDIO=======================================================================================================
 
@@ -511,15 +514,26 @@ void ImageSlot::zoom(qreal x)  {
 //PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
-    wrapper         = new QWidget(parent);
-    viewer          = new QPdfView(wrapper);
-    doc             = new QPdfDocument(wrapper);
-    border          = new QWidget(wrapper);
-    pageSelector    = new QPdfPageSelector(wrapper);
-    searchModel     = new QPdfSearchModel(wrapper);
-    //searchField     = new QLineEdit(wrapper);
-    bookmarkModel   = new QPdfBookmarkModel(wrapper);
-    zoomSelector    = new QComboBox(wrapper);
+    wrapper           = new QWidget(parent);
+    viewer            = new QPdfView(wrapper);
+    doc               = new QPdfDocument(wrapper);
+    border            = new QWidget(wrapper);
+    pageSelector      = new QPdfPageSelector(wrapper);
+    timer             = new QTimer(wrapper);
+    searchModel       = new QPdfSearchModel(wrapper);
+    searchField       = new QLineEdit(wrapper);
+    //searchResultsTab  = new QWidget(wrapper);
+    searchToolBar =     new QToolBar("toolBar", wrapper);
+    searchResultsView = new QListView(wrapper);
+    //bookmarkModel   = new QPdfBookmarkModel(wrapper);
+    zoomSelector      = new QComboBox(wrapper);
+
+    //TODO: bookmarkModel adn qtreeview for index
+
+
+
+    searchResultsView->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
+
 
 
     auto *layout    = new QVBoxLayout(wrapper);
@@ -527,8 +541,10 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     layout->addWidget(viewer);
     layout->addWidget(pageSelector);
     layout->addWidget(zoomSelector);
+    layout->addWidget(searchField);
+    layout->addWidget(searchResultsView);
+
     pageSelector->setVisible(false);
-    //layout->addWidget(searchField);
 
     wrapper->setAcceptDrops(true);
     wrapper->installEventFilter(thisInstance);
@@ -557,19 +573,28 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     border->setGeometry(wrapper->rect());
     border->raise();
 
+    timer->setSingleShot(true);
+    timer->setInterval(300);
+
     if (!doc) {
         return;
     }
     doc->load(path);
 
     viewer->setDocument(doc);
-    bookmarkModel->setDocument(doc);
+    //bookmarkModel->setDocument(doc);
     pageSelector->setDocument(doc);
     searchModel->setDocument(doc);
+
     nav = viewer->pageNavigator();
     viewer->setPageMode(QPdfView::PageMode::MultiPage);
     viewer->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     viewer->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    viewer->setSearchModel(searchModel);
+
+    searchField->setPlaceholderText(QString("Find in document"));
+    searchField->setMaximumWidth(400);
+    searchResultsView->setModel(searchModel);
 
     //QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance, &PdfSlot::goTo);
     //const auto documentTitle = doc->metaData(QPdfDocument::MetaDataField::Title).toString();
@@ -578,30 +603,63 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
                          nav->jump(page, {}, nav->currentZoom());
                     });
 
-    QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
-                     [this](const QString &text) {
-                         if (text == QLatin1String("Fit Width")) {
-                            viewer->setZoomMode(QPdfView::ZoomMode::FitToWidth);
-                         } else if (text == QLatin1String("Fit Page")) {
-                            viewer->setZoomMode(QPdfView::ZoomMode::FitInView);
-                         } else {
-                            factor = 1.0;
+    QObject::connect(searchResultsView->selectionModel(), &QItemSelectionModel::currentChanged, thisInstance,
+                     [this](const QModelIndex &current, const QModelIndex &previous) {
+        Q_UNUSED(previous);
+        if (!current.isValid())
+            return;
 
-                            QString withoutPercent(text);
-                            withoutPercent.remove(QLatin1Char('%'));
-
-                            bool ok = false;
-                            const int zoomLevel = withoutPercent.toInt(&ok);
-                            if (ok)
-                                factor = zoomLevel / 100.0;
-
-                            viewer->setZoomMode(QPdfView::ZoomMode::Custom);
-                            viewer->setZoomFactor(factor);
-                         }
+        const int page = current.data(int(QPdfSearchModel::Role::Page)).toInt();
+        const QPointF location = current.data(int(QPdfSearchModel::Role::Location)).toPointF();
+        viewer->pageNavigator()->jump(page, location);
+        viewer->setCurrentSearchResultIndex(current.row());
                      });
 
 
+
+    QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
+                     [this](const QString &text) {
+                         menuZoom(text);
+                     });
+
+
+    QObject::connect(searchField, &QLineEdit::textEdited, thisInstance, [this](const QString &text) {
+        searchModel->setSearchString(text);
+        pendingSearch = text;
+    });
+
+    QObject::connect(timer, &QTimer::timeout, thisInstance, [this]() {
+        searchModel->setSearchString(pendingSearch);
+    });
+
+    searchResultsView->setItemDelegate(new Delegate(searchResultsView));
 }
+
+void PdfSlot::menuZoom(const QString &text) {
+    if (text == QLatin1String("Fit Width")) {
+        viewer->setZoomMode(QPdfView::ZoomMode::FitToWidth);
+    }
+
+    else if (text == QLatin1String("Fit Page")) {
+        viewer->setZoomMode(QPdfView::ZoomMode::FitInView);
+    }
+
+    else {
+        factor = 1.0;
+
+        QString withoutPercent(text);
+        withoutPercent.remove(QLatin1Char('%'));
+
+        bool ok = false;
+        const int zoomLevel = withoutPercent.toInt(&ok);
+        if (ok)
+            factor = zoomLevel / 100.0;
+
+        viewer->setZoomMode(QPdfView::ZoomMode::Custom);
+        viewer->setZoomFactor(factor);
+    }
+}
+
 
 void PdfSlot::zoom(qreal x) {
     viewer->setZoomMode(QPdfView::ZoomMode::Custom);
@@ -635,6 +693,38 @@ void PdfSlot::redo() {
 
 void PdfSlot::reset() {
     zoomSelector->setCurrentIndex(8);
+}
+
+
+void PdfSlot::Delegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const {
+    const QString displayText = index.data().toString();
+    const auto boldBegin = displayText.indexOf(u"<b>", 0, Qt::CaseInsensitive) + 3;
+    const auto boldEnd = displayText.indexOf(u"</b>", boldBegin, Qt::CaseInsensitive);
+    if (boldBegin >= 3 && boldEnd > boldBegin) {
+        const QString pageLabel = tr("Page %1: ").arg(index.data(int(QPdfSearchModel::Role::Page)).toInt());
+        const QString boldText = displayText.mid(boldBegin, boldEnd - boldBegin);
+        if (option.state & QStyle::State_Selected)
+            painter->fillRect(option.rect, option.palette.highlight());
+        const QFont defaultFont = painter->font();
+        QFontMetrics fm = painter->fontMetrics();
+        auto pageLabelWidth = fm.horizontalAdvance(pageLabel);
+        const int yOffset = (option.rect.height() - fm.height()) / 2 + fm.ascent();
+        painter->drawText(0, option.rect.y() + yOffset, pageLabel);
+        QFont boldFont = defaultFont;
+        boldFont.setBold(true);
+        auto boldWidth = QFontMetrics(boldFont).horizontalAdvance(boldText);
+        auto prefixSuffixWidth = (option.rect.width() - pageLabelWidth - boldWidth) / 2;
+        painter->setFont(boldFont);
+        painter->drawText(pageLabelWidth + prefixSuffixWidth, option.rect.y() + yOffset, boldText);
+        painter->setFont(defaultFont);
+        const QString suffix = fm.elidedText(displayText.mid(boldEnd + 4), Qt::ElideRight, prefixSuffixWidth);
+        painter->drawText(pageLabelWidth + prefixSuffixWidth + boldWidth, option.rect.y() + yOffset, suffix);
+        const QString prefix = fm.elidedText(displayText.left(boldBegin - 3), Qt::ElideLeft, prefixSuffixWidth);
+        painter->drawText(pageLabelWidth + prefixSuffixWidth - fm.horizontalAdvance(prefix),
+                          option.rect.y() + yOffset, prefix);
+    } else {
+        QStyledItemDelegate::paint(painter, option, index);
+    }
 }
 
 //\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================

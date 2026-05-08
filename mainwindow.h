@@ -10,7 +10,6 @@ namespace Ui { class MainWindow; }
 
 class QSlider;
 class QGridLayout;
-class QScrollArea;
 QT_END_NAMESPACE
 
 
@@ -44,14 +43,14 @@ private:
     void toggleSettings();
 
 
-    Ui::MainWindow *ui;
-    QWidget        *container;
-    QGridLayout    *grid;
-    QSlider        *volSlider;
-    QAction        *action;
-    QWidget        *settings;
-    // QScrollArea    *scrollEnabler;
-    QAction        *actionSettings;
+    Ui::MainWindow  *ui;
+    QWidget         *container;
+    QGridLayout     *grid;
+    QSlider         *volSlider;
+    QAction         *action;
+    QWidget         *settings;
+    QAction         *actionSettings;
+
     //selection related global vars(TODO get rid of ts </3)
     int hoveredIndex = -1;
     int fullscreenIndex = -1;

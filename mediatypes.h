@@ -2,6 +2,7 @@
 #define MEDIATYPES_H
 
 
+#include "qstyleditemdelegate.h"
 #include <memory>
 
 #include <QString>
@@ -27,11 +28,14 @@ class QGraphicsPixmapItem;
 class QGraphicsScene;
 class QSlider;
 class QObject;
-class QPdfView;
-class QPdfSearchModel;
 class QPdfBookmarkModel;
 class QPdfPageNavigator;
 class QComboBox;
+class QStyleOptionViewItem;
+class QToolBar;
+class QListView;
+class QStyledItemDelegate;
+class QTimer;
 QT_END_NAMESPACE
 
 
@@ -167,7 +171,7 @@ struct ImageSlot : MediaSlot {
 };
 
 struct PdfSlot : MediaSlot {
-
+    QWidget             *searchResultsTab;
     QPdfDocument        *doc;
     QPdfView            *viewer;
     QPdfPageSelector    *pageSelector;
@@ -176,6 +180,10 @@ struct PdfSlot : MediaSlot {
     QPdfBookmarkModel   *bookmarkModel;
     QPdfPageNavigator   *nav;
     QComboBox           *zoomSelector;
+    QToolBar            *searchToolBar;
+    QListView           *searchResultsView;
+    QTimer              *timer;
+    QString             pendingSearch;
 
     qreal factor;
 
@@ -190,8 +198,17 @@ struct PdfSlot : MediaSlot {
     void undo();
     void redo();
     void reset();
+    void menuZoom(const QString &text);
+    void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
 
     QString type() const override { return "pdf"; }
+
+
+    struct Delegate : public QStyledItemDelegate {
+        using QStyledItemDelegate::QStyledItemDelegate;
+        void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
+    };
+
 };
 
 // struct PdfSlotMinimal : MediaSlot {
