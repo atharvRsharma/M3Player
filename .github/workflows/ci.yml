@@ -16,7 +16,7 @@ jobs:
     - name: Install dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get install -y libgl1-mesa-dev cmake
+        sudo apt-get install -y libgl1-mesa-dev cmake libutfcpp-dev
         git clone https://github.com/taglib/taglib.git
         cd taglib
         cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON .
