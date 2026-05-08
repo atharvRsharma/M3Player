@@ -109,7 +109,7 @@ struct VideoSlot : MediaSlot {
 
     QString type() const override { return "video"; }
 
-    ~VideoSlot() { stop(); }
+    ~VideoSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); player->setVideoOutput(nullptr); }
 };
 
 struct AudioSlot : MediaSlot {
@@ -153,7 +153,7 @@ struct AudioSlot : MediaSlot {
 
     QString type() const override { return "audio"; }
 
-    ~AudioSlot() { stop(); }
+    ~AudioSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); }
 };
 
 struct ImageSlot : MediaSlot {
@@ -178,11 +178,11 @@ struct PdfSlot : MediaSlot {
     QPdfPageSelector    *pageSelector;
     QPdfSearchModel     *searchModel;
     QLineEdit           *searchField;
-    QPdfBookmarkModel   *bookmarkModel;
+    //QPdfBookmarkModel   *bookmarkModel;
     QPdfPageNavigator   *nav;
     QComboBox           *zoomSelector;
-    QToolBar            *searchToolBar;
-    QListView           *searchResultsView;
+
+
     QTimer              *timer;
     QPushButton         *findNext;
     QPushButton         *findPrev;
@@ -212,6 +212,7 @@ struct PdfSlot : MediaSlot {
     void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
     void enableSearch(bool x);
 
+    ~PdfSlot();
     //mixing override(s)
     //void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
 };

@@ -545,12 +545,15 @@ void MainWindow::highlight()
     }
 }
 
+
+
 void MainWindow::removeMedia(int index){
     if (index < 0 || index >= static_cast<int>(mediaSlots.size())) return;
-
-    mediaSlots[index]->wrapper->hide();
-    grid->removeWidget(mediaSlots[index]->wrapper);
+    auto* w = mediaSlots[index]->wrapper;
+    grid->removeWidget(w);
+    w->hide();
     mediaSlots.erase(mediaSlots.begin() + index);
+    w->deleteLater();
     selectedIndices.clear();
     if(volSlider->isVisible()) volSlider->setVisible(false);
     hoveredIndex = -1;
@@ -558,6 +561,5 @@ void MainWindow::removeMedia(int index){
     container->repaint();
     rebuildGrid();
 }
-
 //TODO removal of media thru context menus is borderline unusable, need to figure out right->left
 //sequence and get exact position of context menu and its options

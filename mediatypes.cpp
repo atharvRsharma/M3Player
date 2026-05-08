@@ -753,6 +753,10 @@ void PdfSlot::enableSearch(bool x) {
     }
 }
 
+PdfSlot::~PdfSlot() {
+    doc->close();
+}
+
 //\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 
