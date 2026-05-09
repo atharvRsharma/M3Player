@@ -19,6 +19,7 @@
 #include <QStyle>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QTreeView>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -271,6 +272,18 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     int barH = pdf->findBar->sizeHint().height();
                     pdf->findBar->setGeometry(0, pdf->wrapper->height() - barH * 2 - pdf->zoomSelector->height() - 4,
                                               pdf->findBar->maximumWidth(), barH);
+
+                }
+
+                if (pdf->indexWindow->isVisible()) {
+                    QRect r = pdf->wrapper->rect();
+                    QPoint topLeftGlobal = pdf->wrapper->mapToGlobal(QPoint(0, 0));
+                    int previewWidth = r.width() / 4;
+                    pdf->indexWindow->setGeometry(topLeftGlobal.x(),
+                                                        topLeftGlobal.y() + pdf->navBar->sizeHint().height(),
+                                                        previewWidth,
+                                                        r.height() - 200);
+                    pdf->indexTree->setGeometry(pdf->indexWindow->rect());
                 }
                 pdf->border->setGeometry(pdf->wrapper->rect());
                 return true;
@@ -325,7 +338,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             else if(e->key() == Qt::Key_F && !e->modifiers()) {
                 if (fullscreenIndex == -1) {
                     enterFullscreen(selectedIndices[0]);
-
+                    // mediaSlots[fullscreenIndex]->toggleMediaControls(true);
                 }
                 else exitFullscreen();
             }
@@ -337,6 +350,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                 pdf->enableSearch(false);
             }
             else if (fullscreenIndex != -1) exitFullscreen();
+
         }
 
 
@@ -459,6 +473,11 @@ void MainWindow::enterFullscreen(int index)
     ui->toolBar_2->update();
     fullscreenIndex = index;
 
+    if (mediaSlots[index]->type() == "pdf") {
+        auto *pdf = static_cast<PdfSlot*>(mediaSlots[index].get());
+        pdf->navBar->show();
+    }
+
     grid->removeWidget(mediaSlots[index]->wrapper);
     mediaSlots[index]->wrapper->setParent(container);
     mediaSlots[index]->wrapper->setGeometry(container->rect());
@@ -477,6 +496,13 @@ void MainWindow::enterFullscreen(int index)
 
 void MainWindow::exitFullscreen()
 {
+    if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
+        auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+        pdf->navBar->hide();
+        pdf->indexWindow->hide();
+        pdf->findBar->hide();
+    }
+
     action->setVisible(false);
     ui->toolBar_2->update();
     mediaSlots[fullscreenIndex]->wrapper->setParent(container);

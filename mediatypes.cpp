@@ -32,6 +32,8 @@
 #include <QItemSelectionModel>
 #include <QTimer>
 #include <QPushButton>
+#include <QSpinBox>
+#include <QTreeView>
 
 
 #include <taglib/fileref.h>
@@ -128,26 +130,10 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 
 
 
-
-    QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
-    QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
-    QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
-    QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
     // QObject::connect(player, &QMediaPlayer::seekableChanged, thisInstance, [this] (int sec) {
     //     seek(sec);
     // });
-
-    QObject::connect(player, &QMediaPlayer::tracksChanged, thisInstance, [this]() { updateTracks(); });
-
-    QObject::connect(subtitleTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
-                     { selectSubtitleStream(stream); });
-
-    QObject::connect(videoTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
-                     { selectVideoStream(stream); });
-
-    QObject::connect(audioTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
-                     { selectAudioStream(stream); });
-
+    connectSlots(thisInstance);
 
     player->setSource(QUrl::fromLocalFile(path));
 
@@ -278,6 +264,26 @@ void VideoSlot::showSettings(QWidget* settingsOverlay) {
     layout->addWidget(audioTracks);
 }
 
+void VideoSlot::connectSlots(QObject* thisInstance) {
+    QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
+    QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
+    QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
+    QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
+
+    QObject::connect(player, &QMediaPlayer::tracksChanged, thisInstance, [this]() { updateTracks(); });
+
+    QObject::connect(subtitleTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
+                     { selectSubtitleStream(stream); });
+
+    QObject::connect(videoTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
+                     { selectVideoStream(stream); });
+
+    QObject::connect(audioTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
+                     { selectAudioStream(stream); });
+
+
+}
+
 //\\VIDEOVIDEOVIDEO=======================================================================================================
 
 //AUDIOAUDIOAUDIO====================================================================================================================
@@ -337,25 +343,7 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     overlay->raise();
 
 
-    QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
-    QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
-    QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
-    QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
-
-    QObject::connect(player, &QMediaPlayer::metaDataChanged, [this]{
-        if(QVariant thumbnail = player->metaData().value(QMediaMetaData::ThumbnailImage); !thumbnail.isNull()) {
-            coverImage = thumbnail.value<QImage>();
-            cover->setPixmap(QPixmap::fromImage(coverImage).scaled(cover->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        }
-
-        if(QString titleName = player->metaData().stringValue(QMediaMetaData::Title); !titleName.isEmpty()) {
-            title->setText(titleName);
-        }
-
-        if(QString artistName = player->metaData().stringValue(QMediaMetaData::ContributingArtist); !artistName.isEmpty()) {
-            artist->setText("   " + artistName);
-        }
-    });
+    connectSlots(thisInstance);
 
     if (QString lyric = getLyrics(path); !lyric.isEmpty()) {
         lyrics->setText(lyric);
@@ -459,6 +447,28 @@ void AudioSlot::showSettings(QWidget* settingsOverlay) {
     layout->addWidget(scrollArea);
 }
 
+void AudioSlot::connectSlots(QObject* thisInstance) {
+    QObject::connect(player, &QMediaPlayer::durationChanged, slider, &QSlider::setMaximum);
+    QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
+    QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
+    QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
+
+    QObject::connect(player, &QMediaPlayer::metaDataChanged, [this]{
+        if(QVariant thumbnail = player->metaData().value(QMediaMetaData::ThumbnailImage); !thumbnail.isNull()) {
+            coverImage = thumbnail.value<QImage>();
+            cover->setPixmap(QPixmap::fromImage(coverImage).scaled(cover->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
+
+        if(QString titleName = player->metaData().stringValue(QMediaMetaData::Title); !titleName.isEmpty()) {
+            title->setText(titleName);
+        }
+
+        if(QString artistName = player->metaData().stringValue(QMediaMetaData::ContributingArtist); !artistName.isEmpty()) {
+            artist->setText("   " + artistName);
+        }
+    });
+}
+
 
 //\\AUDIOAUDIOAUDIO=======================================================================================================
 
@@ -523,25 +533,29 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     timer             = new QTimer(wrapper);
     searchModel       = new QPdfSearchModel(wrapper);
     searchField       = new QLineEdit(wrapper);
-    //searchToolBar     = new QToolBar("toolBar", wrapper);
     zoomSelector      = new QComboBox(wrapper);
+    bookmarkModel     = new QPdfBookmarkModel(wrapper);
+
+
     findBar           = new QWidget(wrapper);
     findPrev          = new QPushButton("<-", findBar);
     findNext          = new QPushButton("->", findBar);
     findClose         = new QPushButton("x", findBar);
-    //bookmarkModel   = new QPdfBookmarkModel(wrapper);
 
-    //TODO: bookmarkModel and qtreeview for index
+    navBar            = new QWidget(wrapper);
+    prevPage          = new QPushButton("↑", navBar);
+    nextPage          = new QPushButton("↓", navBar);
+
+    indexWindow = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint);
+    viewIndexButton   = new QPushButton("=", navBar);
+    indexTree         = new QTreeView(indexWindow);
+    indexWindow->hide();
 
 
+    if (auto *spin = pageSelector->findChild<QSpinBox*>())
+        spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
 
 
-    auto *layout = new QVBoxLayout(wrapper);
-    layout->setContentsMargins(0,0,0,0);
-    layout->addWidget(viewer);
-    layout->addWidget(pageSelector);
-    layout->addWidget(zoomSelector);
-    //layout->addWidget(searchField);
 
 
     auto *findLayout = new QHBoxLayout(findBar);
@@ -558,9 +572,40 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     findBar->hide();
 
 
-    //searchField->hide();
+    viewIndexButton->setMaximumWidth(40);
 
-    pageSelector->setVisible(false);
+    auto *navLayout = new QHBoxLayout(navBar);
+    navLayout->setContentsMargins(8, 2, 8, 2);
+    navLayout->setSpacing(4);
+    navLayout->addWidget(viewIndexButton);
+    navLayout->addWidget(zoomSelector);
+
+
+
+    navBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    navBar->setFixedHeight(36);
+    navBar->raise();
+    navBar->hide();
+    pageSelector->setFixedHeight(32);
+    pageSelector->setMinimumWidth(100);
+    zoomSelector->setFixedHeight(32);
+    zoomSelector->setMinimumWidth(120);
+    viewIndexButton->setMinimumWidth(40);
+
+
+    navLayout->addStretch();
+    navLayout->addWidget(prevPage);
+    navLayout->addWidget(pageSelector);
+    navLayout->addWidget(nextPage);
+
+
+    auto *layout = new QVBoxLayout(wrapper);
+    layout->setContentsMargins(0,0,0,0);
+    layout->setSpacing(0);
+    layout->addWidget(navBar);
+    layout->addWidget(viewer, 1);
+
 
     wrapper->setAcceptDrops(true);
     wrapper->installEventFilter(thisInstance);
@@ -598,7 +643,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     doc->load(path);
 
     viewer->setDocument(doc);
-    //bookmarkModel->setDocument(doc);
+    bookmarkModel->setDocument(doc);
     pageSelector->setDocument(doc);
     searchModel->setDocument(doc);
 
@@ -611,39 +656,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     searchField->setPlaceholderText(QString("Find in document"));
     searchField->setMaximumWidth(400);
 
-    QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this]() {
-        nextResult();
-    });
-    QObject::connect(findPrev, &QPushButton::clicked, thisInstance, [this]() {
-        prevResult();
-    });
-    QObject::connect(findClose, &QPushButton::clicked, thisInstance, [this]() {
-        enableSearch(false);
-    });
-
-    //QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance, &PdfSlot::goTo);
-    //const auto documentTitle = doc->metaData(QPdfDocument::MetaDataField::Title).toString();
-    QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance,
-                    [this](int page) {
-                         nav->jump(page, {}, nav->currentZoom());
-                    });
-
-
-    QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
-                     [this](const QString &text) {
-                         menuZoom(text);
-                     });
-
-
-    QObject::connect(searchField, &QLineEdit::textEdited, thisInstance, [this](const QString &text) {
-        searchModel->setSearchString(text);
-        currentResultIndex = -1;
-    });
-
-    QObject::connect(timer, &QTimer::timeout, thisInstance, [this]() {
-        searchModel->setSearchString(pendingSearch);
-    });
-
+    connectSlots(thisInstance);
 }
 
 void PdfSlot::searchResultsChanged(const QModelIndex &current, const QModelIndex &previous) {
@@ -721,9 +734,7 @@ void PdfSlot::scroll(int x) {
     viewer->verticalScrollBar()->setValue( viewer->verticalScrollBar()->value() + (x));
 }
 
-void PdfSlot::toggleMediaControls(bool x) {
-    pageSelector->setVisible(x);
-}
+
 
 void PdfSlot::undo() {
     viewer->pageNavigator()->back();
@@ -751,6 +762,74 @@ void PdfSlot::enableSearch(bool x) {
         searchModel->setSearchString("");
         currentResultIndex = -1;
     }
+}
+
+void PdfSlot::enablePreviewPanel() {
+    if (!indexWindow->isVisible()) {
+
+        QRect r = wrapper->rect();
+        QPoint topLeftGlobal = wrapper->mapToGlobal(QPoint(0, 0));
+        int previewWidth = r.width() / 4;
+        indexWindow->setGeometry(
+            topLeftGlobal.x(),
+            topLeftGlobal.y() + navBar->sizeHint().height(),
+            previewWidth,
+            r.height() - 200
+            );
+
+        indexTree->setModel(bookmarkModel);
+        indexTree->setGeometry(indexWindow->rect());
+        indexWindow->setVisible(true);
+    }
+    else indexWindow->setVisible(false);
+}
+
+void PdfSlot::connectSlots(QObject* thisInstance) {
+    QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this]() {
+        nextResult();
+    });
+    QObject::connect(findPrev, &QPushButton::clicked, thisInstance, [this]() {
+        prevResult();
+    });
+    QObject::connect(findClose, &QPushButton::clicked, thisInstance, [this]() {
+        enableSearch(false);
+    });
+
+    QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance,
+                     [this](int page) {
+                         nav->jump(page, {}, nav->currentZoom());
+                     });
+
+
+    QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
+                     [this](const QString &text) {
+                         menuZoom(text);
+                     });
+
+
+    QObject::connect(searchField, &QLineEdit::textEdited, thisInstance, [this](const QString &text) {
+        searchModel->setSearchString(text);
+        currentResultIndex = -1;
+    });
+
+    QObject::connect(indexTree, &QTreeView::clicked, thisInstance, [this](const QModelIndex &index) {
+        int page = index.data(int(QPdfBookmarkModel::Role::Page)).toInt();
+        nav->jump(page, {}, nav->currentZoom());
+    });
+
+
+    QObject::connect(timer, &QTimer::timeout, thisInstance, [this]() {
+        searchModel->setSearchString(pendingSearch);
+    });
+    QObject::connect(prevPage, &QPushButton::clicked, thisInstance, [this]() {
+        nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
+    });
+    QObject::connect(nextPage, &QPushButton::clicked, thisInstance, [this]() {
+        nav->jump(nav->currentPage() + 1, {}, nav->currentZoom());
+    });
+    QObject::connect(viewIndexButton, &QPushButton::clicked, thisInstance, [this] {
+        enablePreviewPanel();
+    });
 }
 
 PdfSlot::~PdfSlot() {

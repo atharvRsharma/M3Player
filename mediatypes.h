@@ -38,6 +38,7 @@ class QListView;
 class QStyledItemDelegate;
 class QTimer;
 class QPushButton;
+class QTreeView;
 QT_END_NAMESPACE
 
 
@@ -61,6 +62,7 @@ struct MediaSlot  {
     virtual void scroll(int) {};
     virtual void seek(int) {}
     virtual void showSettings(QWidget*) {};
+    virtual void connectSlots(QObject* thisInstance) {}
     virtual QMediaPlayer::PlaybackState getPlayerState() const { return QMediaPlayer::StoppedState; }
     virtual QString type() const = 0;
 
@@ -95,6 +97,7 @@ struct VideoSlot : MediaSlot {
     void adjustVolume(float delta) override;
     void seek(int sec) override;
     void showSettings(QWidget* settingsOverlay) override;
+    void connectSlots(QObject* thisInstance) override;
 
     void selectSubtitleStream(int stream);
     void selectVideoStream(int stream);
@@ -144,6 +147,7 @@ struct AudioSlot : MediaSlot {
     void adjustVolume(float delta) override;
     void seek(int sec) override;
     void showSettings(QWidget* settingsOverlay) override;
+    void connectSlots(QObject* thisInstance) override;
 
     QMediaPlayer::PlaybackState getPlayerState() const override {
         return player->playbackState();
@@ -172,33 +176,40 @@ struct ImageSlot : MediaSlot {
 };
 
 struct PdfSlot : MediaSlot {
-    QWidget             *findBar;
     QPdfDocument        *doc;
     QPdfView            *viewer;
     QPdfPageSelector    *pageSelector;
     QPdfSearchModel     *searchModel;
     QLineEdit           *searchField;
-    //QPdfBookmarkModel   *bookmarkModel;
+    QPdfBookmarkModel   *bookmarkModel;
     QPdfPageNavigator   *nav;
     QComboBox           *zoomSelector;
-
-
+    QWidget             *indexWindow;
+    QTreeView           *indexTree;
     QTimer              *timer;
+
+    QWidget             *findBar;
     QPushButton         *findNext;
     QPushButton         *findPrev;
     QPushButton         *findClose;
 
-    QString             pendingSearch;
-    int          currentResultIndex = -1;
+    QWidget             *navBar;
+    QPushButton         *prevPage;
+    QPushButton         *nextPage;
+    QPushButton         *viewIndexButton;
 
-    qreal factor;
+
+    QString             pendingSearch;
+    qreal               factor;
+    int                 currentResultIndex = -1;
+
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void forward() override;
     void backward() override;
     void zoom(qreal x) override;
     void scroll(int x) override;
-    void toggleMediaControls(bool x) override;
+    void connectSlots(QObject* thisInstance) override;
 
     QString type() const override { return "pdf"; }
 
@@ -211,10 +222,9 @@ struct PdfSlot : MediaSlot {
     void jumpToResult(int i);
     void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
     void enableSearch(bool x);
+    void enablePreviewPanel();
 
     ~PdfSlot();
-    //mixing override(s)
-    //void paint(QPainter*, const QStyleOptionViewItem&, const QModelIndex&) const override;
 };
 
 // struct PdfSlotMinimal : MediaSlot {
