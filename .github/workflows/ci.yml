@@ -1,5 +1,11 @@
 name: CI
-on: push
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+    
 jobs:
   build:
     strategy:
@@ -8,11 +14,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
+
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
         version: '6.10.3'
         modules: 'qtmultimedia qtpdf'
+
     - name: Install dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -22,29 +30,56 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON .
         make -j$(nproc)
         sudo make install
+
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         brew install taglib pkg-config
         echo "PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig" >> $GITHUB_ENV
+
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: vcpkg install taglib:x64-windows
+
     - uses: ilammy/msvc-dev-cmd@v1
       if: matrix.os == 'windows-latest'
+
     - name: Build (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
         qmake M3Player.pro
         make -j$(nproc)
+
     - name: Build (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         qmake M3Player.pro -spec win32-msvc
         nmake
+
     - name: Build (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         export PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig:$PKG_CONFIG_PATH
         qmake M3Player.pro
         make -j$(nproc)
+
+    - name: Package (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir release
+        copy M3Player.exe release\
+        windeployqt release\M3Player.exe
+        copy C:\vcpkg\installed\x64-windows\bin\tag.dll release\
+
+    - name: Upload artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: M3Player-windows
+        path: release\
+
+    - name: Create Release (Windows)
+      if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release/**
