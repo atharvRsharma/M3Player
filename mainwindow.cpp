@@ -20,6 +20,7 @@
 #include <QLineEdit>
 #include <QComboBox>
 #include <QTreeView>
+#include <QGraphicsView>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -234,11 +235,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             for (int i = 0; i < (int)mediaSlots.size(); ++i) {
                 if (mediaSlots[i]->type() == "image" && mediaSlots[i]->wrapper == obj) {
                     auto *img = dynamic_cast<ImageSlot*>(mediaSlots[i].get());
-                    QSize newSize = img->wrapper->size();
-                    if (newSize != img->lastSize) {
-                        img->lastSize = newSize;
-                        img->item->setPixmap(img->pixmap.scaled(newSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-                    }
+                    img->viewer->fitInView(img->item, Qt::KeepAspectRatio);
                     img->border->setGeometry(img->wrapper->rect());
                     return true;
                 }
@@ -268,23 +265,20 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         else {
             if (mediaSlots[fullscreenIndex]->type() == "pdf" && mediaSlots[fullscreenIndex]->wrapper == obj) {
                 auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+                int findBarH = pdf->findBar->sizeHint().height();
                 if (pdf->findBar->isVisible()) {
-                    int barH = pdf->findBar->sizeHint().height();
-                    pdf->findBar->setGeometry(0, pdf->wrapper->height() - barH * 2 - pdf->zoomSelector->height() - 4,
-                                              pdf->findBar->maximumWidth(), barH);
-
+                    pdf->findBar->setGeometry(0, pdf->wrapper->height() - findBarH,
+                                              pdf->findBar->maximumWidth(), findBarH);
                 }
 
-                if (pdf->indexWindow->isVisible()) {
+                if (pdf->sidePanel->isVisible()) {
                     QRect r = pdf->wrapper->rect();
-                    QPoint topLeftGlobal = pdf->wrapper->mapToGlobal(QPoint(0, 0));
-                    int previewWidth = r.width() / 4;
-                    pdf->indexWindow->setGeometry(topLeftGlobal.x(),
-                                                        topLeftGlobal.y() + pdf->navBar->sizeHint().height(),
-                                                        previewWidth,
-                                                        r.height() - 200);
-                    pdf->indexTree->setGeometry(pdf->indexWindow->rect());
+                    int navH = pdf->navBar->sizeHint().height();
+                    int actualBarH = pdf->findBar->isVisible() ? findBarH : 0;
+                    pdf->sidePanel->setGeometry(3, navH + 2, r.width() / 4,
+                                                r.height() - navH - 4 - actualBarH);
                 }
+
                 pdf->border->setGeometry(pdf->wrapper->rect());
                 return true;
             }
@@ -499,7 +493,7 @@ void MainWindow::exitFullscreen()
     if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
         auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
         pdf->navBar->hide();
-        pdf->indexWindow->hide();
+        pdf->sidePanel->hide();
         pdf->findBar->hide();
     }
 

@@ -184,9 +184,8 @@ struct PdfSlot : MediaSlot {
     QPdfBookmarkModel   *bookmarkModel;
     QPdfPageNavigator   *nav;
     QComboBox           *zoomSelector;
-    QWidget             *indexWindow;
-    QTreeView           *indexTree;
-    QTimer              *timer;
+    QWidget             *sidePanel;
+    QTreeView           *bookmarkTree;
 
     QWidget             *findBar;
     QPushButton         *findNext;
@@ -196,12 +195,16 @@ struct PdfSlot : MediaSlot {
     QWidget             *navBar;
     QPushButton         *prevPage;
     QPushButton         *nextPage;
-    QPushButton         *viewIndexButton;
+    QPushButton         *sidePanelButton;
+
+    QPushButton         *thumbnailTabButton;
+    QPushButton         *indexTabButton;
 
 
     QString             pendingSearch;
     qreal               factor;
-    int                 currentResultIndex = -1;
+    int                 currentResultIndex      = -1;
+    bool                sidePanelOpen           = false;
 
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
@@ -213,8 +216,7 @@ struct PdfSlot : MediaSlot {
 
     QString type() const override { return "pdf"; }
 
-    void undo();
-    void redo();
+    void initComboBox();
     void reset();
     void nextResult();
     void prevResult();
@@ -222,7 +224,9 @@ struct PdfSlot : MediaSlot {
     void jumpToResult(int i);
     void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
     void enableSearch(bool x);
-    void enablePreviewPanel();
+    void enableSidePanel();
+    void showIndexTab();
+
 
     ~PdfSlot();
 };
