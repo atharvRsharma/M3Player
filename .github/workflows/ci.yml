@@ -63,17 +63,15 @@ jobs:
         qmake M3Player.pro
         make -j$(nproc)
 
-    - name: Find exe (Windows)
-      if: matrix.os == 'windows-latest'
-      run: Get-ChildItem -Recurse -Filter *.exe | Select-Object FullName
+
 
     - name: Package (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        mkdir -Force release
-        copy M3Player.exe release\
-        windeployqt release\M3Player.exe
-        copy C:\vcpkg\installed\x64-windows\bin\tag.dll release\
+        mkdir -Force dist
+        copy release\M3Player.exe dist\
+        windeployqt dist\M3Player.exe
+        copy C:\vcpkg\installed\x64-windows\bin\tag.dll dist\
 
     - name: Upload artifact (Windows)
       if: matrix.os == 'windows-latest'
