@@ -34,6 +34,9 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTreeView>
+#include <QPdfPageRenderer>
+#include <QtConcurrent>
+#include <QFutureWatcher>
 
 
 #include <taglib/fileref.h>
@@ -536,7 +539,9 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     zoomSelector      = new QComboBox(wrapper);
     bookmarkModel     = new QPdfBookmarkModel(wrapper);
     sidePanel         = new QWidget(wrapper);
+    // renderer           = new QPdfPageRenderer(wrapper);
     indexTabButton    = new QPushButton("idx", sidePanel);
+    thumbnailTabButton = new QPushButton("pg", sidePanel);
 
     bookmarkTree      = new QTreeView(sidePanel);
 
@@ -550,7 +555,8 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     nextPage          = new QPushButton("↓", navBar);
     sidePanelButton   = new QPushButton("=", navBar);
 
-
+    thumbnailView       = new QGraphicsView(sidePanel);
+    thumbnailScene      = new QGraphicsScene(thumbnailView);
 
 
 
@@ -565,6 +571,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
 
     sidePanel->hide();
     bookmarkTree->hide();
+    thumbnailView->hide();
     sidePanelButton->setMaximumWidth(40);
 
     navBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -607,16 +614,16 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     navLayout->addWidget(nextPage);
 
 
-    prevPage->setMaximumWidth(30);
-    nextPage->setMaximumWidth(30);
+    prevPage->setFixedSize(30, 30);
+    nextPage->setFixedSize(30, 30);
 
 
     auto *sidePanelLayout = new QVBoxLayout(sidePanel);
     sidePanelLayout->setContentsMargins(0, 0, 0, 0);
     sidePanelLayout->setSpacing(0);
     sidePanelLayout->setAlignment(Qt::AlignTop);
-    sidePanel->setWindowOpacity(0.85);
     sidePanel->setStyleSheet("background-color: #111111;");
+    sidePanel->setWindowOpacity(0.55);
 
     auto *tabBar = new QWidget(sidePanel);
     tabBar->setFixedHeight(32);
@@ -624,13 +631,16 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     auto *tabLayout = new QHBoxLayout(tabBar);
     tabLayout->setContentsMargins(4, 2, 4, 2);
     tabLayout->setSpacing(0);
-    tabLayout->addStretch();
+    // tabLayout->addStretch();
     tabLayout->addWidget(indexTabButton);
-    tabLayout->addStretch();
+    // tabLayout->addStretch();
+    tabLayout->addWidget(thumbnailTabButton);
     indexTabButton->setFixedSize(40, 28);
+    thumbnailTabButton->setFixedSize(40, 28);
 
     sidePanelLayout->addWidget(tabBar);
     sidePanelLayout->addWidget(bookmarkTree, 1);
+    sidePanelLayout->addWidget(thumbnailView, 1);
 
     auto *layout = new QVBoxLayout(wrapper);
     layout->setContentsMargins(0,0,0,0);
@@ -656,11 +666,13 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
         return;
     }
     doc->load(path);
+    filePath = path;
 
     viewer->setDocument(doc);
     bookmarkModel->setDocument(doc);
     pageSelector->setDocument(doc);
     searchModel->setDocument(doc);
+    // populateThumbnailTab();
 
     nav = viewer->pageNavigator();
     viewer->setPageMode(QPdfView::PageMode::MultiPage);
@@ -784,7 +796,7 @@ void PdfSlot::enableSearch(bool x) {
 void PdfSlot::enableSidePanel() {
     if (!sidePanel->isVisible()) {
         QRect r = wrapper->rect();
-        int previewWidth = r.width() / 4;
+        int previewWidth = r.width() / 5;
         int navH = navBar->sizeHint().height();
         int barH = findBar->isVisible() ? findBar->sizeHint().height() : 0;
         sidePanel->setGeometry(3, navH + 2, previewWidth,
@@ -814,11 +826,68 @@ void PdfSlot::initComboBox() {
 
 void PdfSlot::showIndexTab() {
     if(!bookmarkTree->isVisible()) {
+        if(thumbnailView->isVisible()) thumbnailView->setVisible(false);
         bookmarkTree->setVisible(true);
-        bookmarkTree->setGeometry(sidePanel->rect());
     }
     else  bookmarkTree->hide();
 }
+
+void PdfSlot::showThumbnailTab() {
+    if (!thumbnailView->isVisible()) {
+        if (bookmarkTree->isVisible()) bookmarkTree->setVisible(false);
+        if (!thumbnailsLoaded) {
+            populateThumbnailTab();
+            thumbnailsLoaded = true;
+        }
+        thumbnailView->setVisible(true);
+    }
+    else thumbnailView->hide();
+}
+
+
+void PdfSlot::populateThumbnailTab() {
+    int pageCt = doc->pageCount();
+    auto *watcher = new QFutureWatcher<QList<QPixmap>>();
+
+    QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [this, watcher]() {
+        auto pixmaps = watcher->result();
+        qreal yOffset = 0;
+        for (auto &pix : pixmaps) {
+            auto *item = new QGraphicsPixmapItem(pix);
+            item->setPos(0, yOffset);
+            item->setTransformationMode(Qt::SmoothTransformation);
+            thumbnailScene->addItem(item);
+            yOffset += pix.height() + 10;
+        }
+        thumbnailView->setScene(thumbnailScene);
+        thumbnailView->setAlignment(Qt::AlignTop);
+        QRectF contentRect = thumbnailScene->itemsBoundingRect();
+        thumbnailView->setSceneRect(contentRect);
+        watcher->deleteLater();
+    });
+
+    auto future = QtConcurrent::run([this, pageCt]() {
+        QPdfDocument thumbDoc;
+        thumbDoc.load(filePath);
+        QList<QPixmap> pixmaps;
+        for (int i = 0; i < pageCt; ++i) {
+            //QSizeF pageSize = thumbDoc.pagePointSize(i) / 1.5;
+            QSize renderSize = QSize(120, 200);
+            auto img = thumbDoc.render(i, renderSize);
+            QImage filledImg(renderSize, QImage::Format_RGB32);
+            filledImg.fill(Qt::white);
+            QPainter p(&filledImg);
+            p.drawImage(0, 0, img);
+            p.end();
+            pixmaps.append(QPixmap::fromImage(filledImg));
+        }
+        return pixmaps;
+    });
+
+    watcher->setFuture(future);
+}
+
+
 
 void PdfSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this]() {
@@ -853,8 +922,6 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
         nav->jump(page, {}, nav->currentZoom());
     });
 
-
-
     QObject::connect(prevPage, &QPushButton::clicked, thisInstance, [this]() {
         nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
     });
@@ -867,7 +934,11 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(indexTabButton, &QPushButton::clicked, thisInstance, [this] {
         showIndexTab();
     });
+    QObject::connect(thumbnailTabButton, &QPushButton::clicked, thisInstance, [this] {
+        showThumbnailTab();
+    });
 }
+
 
 PdfSlot::~PdfSlot() {
     doc->close();

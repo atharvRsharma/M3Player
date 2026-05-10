@@ -7,8 +7,10 @@
 
 #include <QString>
 #include <QSize>
+#include <QSet>
 #include <QImage>
 #include <QPixmap>
+#include <QHash>
 #include <QMediaPlayer>
 
 
@@ -39,6 +41,7 @@ class QStyledItemDelegate;
 class QTimer;
 class QPushButton;
 class QTreeView;
+class QPdfPageRenderer;
 QT_END_NAMESPACE
 
 
@@ -99,20 +102,19 @@ struct VideoSlot : MediaSlot {
     void showSettings(QWidget* settingsOverlay) override;
     void connectSlots(QObject* thisInstance) override;
 
+    QMediaPlayer::PlaybackState getPlayerState() const override {
+        return player->playbackState();
+    }
+
+    QString type() const override { return "video"; }
+    ~VideoSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); player->setVideoOutput(nullptr); }
+
+private:
     void selectSubtitleStream(int stream);
     void selectVideoStream(int stream);
     void selectAudioStream(int stream);
     QString trackName(const QMediaMetaData &metaData, int index);
     void updateTracks();
-
-    QMediaPlayer::PlaybackState getPlayerState() const override {
-        return player->playbackState();
-    }
-
-
-    QString type() const override { return "video"; }
-
-    ~VideoSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); player->setVideoOutput(nullptr); }
 };
 
 struct AudioSlot : MediaSlot {
@@ -153,11 +155,13 @@ struct AudioSlot : MediaSlot {
         return player->playbackState();
     }
 
-    QString getLyrics(const QString &filePath);
 
     QString type() const override { return "audio"; }
-
     ~AudioSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); }
+
+private:
+    QString getLyrics(const QString &filePath);
+
 };
 
 struct ImageSlot : MediaSlot {
@@ -198,13 +202,19 @@ struct PdfSlot : MediaSlot {
     QPushButton         *sidePanelButton;
 
     QPushButton         *thumbnailTabButton;
+    QGraphicsView       *thumbnailView;
+    QGraphicsScene      *thumbnailScene;
+    QPixmap             pixmap;
+
+
     QPushButton         *indexTabButton;
 
-
     QString             pendingSearch;
+    QString             filePath;
     qreal               factor;
     int                 currentResultIndex      = -1;
     bool                sidePanelOpen           = false;
+    bool                thumbnailsLoaded        = false;
 
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
@@ -214,8 +224,12 @@ struct PdfSlot : MediaSlot {
     void scroll(int x) override;
     void connectSlots(QObject* thisInstance) override;
 
-    QString type() const override { return "pdf"; }
 
+    QString type() const override { return "pdf"; }
+    ~PdfSlot();
+
+    void enableSearch(bool x);
+private:
     void initComboBox();
     void reset();
     void nextResult();
@@ -223,12 +237,10 @@ struct PdfSlot : MediaSlot {
     void menuZoom(const QString &text);
     void jumpToResult(int i);
     void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
-    void enableSearch(bool x);
     void enableSidePanel();
     void showIndexTab();
-
-
-    ~PdfSlot();
+    void showThumbnailTab();
+    void populateThumbnailTab();
 };
 
 // struct PdfSlotMinimal : MediaSlot {

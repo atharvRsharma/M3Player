@@ -1,4 +1,4 @@
-QT       += core gui multimedia multimediawidgets widgets pdf pdfwidgets
+QT       += core gui multimedia multimediawidgets widgets pdf pdfwidgets concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
