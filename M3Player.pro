@@ -33,8 +33,12 @@ win32 {
 
 unix {
     macx {
-        INCLUDEPATH += $$system(pkg-config --cflags-only-I taglib poppler-qt6 | sed 's/-I//g')
-        LIBS += $$system(pkg-config --libs taglib poppler-qt6)
+        INCLUDEPATH += /opt/homebrew/include
+        INCLUDEPATH += /opt/homebrew/include/poppler/qt6
+
+        LIBS += -L/opt/homebrew/lib
+        LIBS += -ltag
+        LIBS += -lpoppler-qt6
     } else {
         CONFIG += link_pkgconfig
         PKGCONFIG += taglib poppler-qt6
