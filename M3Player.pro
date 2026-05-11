@@ -9,6 +9,7 @@ VCPKG_ROOT = C:/vcpkg
 
 win32 {
     INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
+    INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include/poppler/qt6
 
     LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib
     LIBS += -ltag
