@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
@@ -34,19 +34,20 @@ jobs:
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install taglib poppler pkg-config
-        echo "PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig:$(brew --prefix poppler)/lib/pkgconfig" >> $GITHUB_ENV
-        ls $(brew --prefix poppler)/lib/pkgconfig/
-        pkg-config --libs poppler-qt6 || echo "poppler-qt6 NOT FOUND in pkgconfig"
+        brew install taglib pkg-config
+        brew tap gocram/poppler-qt6
+        brew install poppler-qt6
+        echo "PKG_CONFIG_PATH=$(brew --prefix gocram/poppler-qt6/poppler-qt6)/lib/pkgconfig:$(brew --prefix taglib)/lib/pkgconfig" >> $GITHUB_ENV
         
     - name: Cache vcpkg
+      id: cache-vcpkg
       uses: actions/cache@v4
       with:
         path: C:/vcpkg/installed
         key: vcpkg-${{ runner.os }}-taglib-poppler
 
     - name: Install dependencies (Windows)
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-latest' && steps.cache-vcpkg.outputs.cache-hit != 'true'
       run: vcpkg install taglib:x64-windows poppler:x64-windows
 
     - uses: ilammy/msvc-dev-cmd@v1
@@ -67,7 +68,7 @@ jobs:
     - name: Build (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        export PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig:$(brew --prefix poppler)/lib/pkgconfig:$PKG_CONFIG_PATH
+        pkg-config --libs poppler-qt6 || echo "poppler-qt6 NOT FOUND"
         qmake M3Player.pro
         make -j$(nproc)
 
