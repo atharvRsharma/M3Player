@@ -32,13 +32,8 @@ win32 {
 }
 
 unix {
-    macx {
-        CONFIG += link_pkgconfig
-        PKGCONFIG += taglib poppler-qt6
-    } else {
-        CONFIG += link_pkgconfig
-        PKGCONFIG += taglib poppler-qt6
-    }
+    CONFIG += link_pkgconfig
+    PKGCONFIG += taglib poppler-qt6
 }
 
 # You can make your code fail to compile if it uses deprecated APIs.
