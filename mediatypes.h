@@ -2,7 +2,7 @@
 #define MEDIATYPES_H
 
 
-//#include "qstyleditemdelegate.h"
+
 #include <memory>
 
 #include <QString>
@@ -209,6 +209,7 @@ struct PdfSlot : MediaSlot {
 
     QPushButton         *indexTabButton;
 
+
     QString             pendingSearch;
     QString             filePath;
     qreal               factor;
@@ -223,7 +224,6 @@ struct PdfSlot : MediaSlot {
     void zoom(qreal x) override;
     void scroll(int x) override;
     void connectSlots(QObject* thisInstance) override;
-
 
     QString type() const override { return "pdf"; }
     ~PdfSlot();
@@ -242,6 +242,8 @@ private:
     void showThumbnailTab();
     void populateThumbnailTab();
 };
+
+
 
 // struct PdfSlotMinimal : MediaSlot {
 //     QPdfDocument    *doc;

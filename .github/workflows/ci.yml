@@ -24,7 +24,7 @@ jobs:
     - name: Install dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
-        sudo apt-get install -y libgl1-mesa-dev cmake libutfcpp-dev
+        sudo apt-get install -y libgl1-mesa-dev cmake libutfcpp-dev libpoppler-qt6-dev
         git clone https://github.com/taglib/taglib.git
         cd taglib
         cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON .
@@ -34,12 +34,12 @@ jobs:
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install taglib pkg-config
-        echo "PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig" >> $GITHUB_ENV
+        brew install taglib poppler pkg-config
+        echo "PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig:$(brew --prefix poppler)/lib/pkgconfig" >> $GITHUB_ENV
 
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
-      run: vcpkg install taglib:x64-windows
+      run: vcpkg install taglib:x64-windows poppler[qt6]:x64-windows
 
     - uses: ilammy/msvc-dev-cmd@v1
       if: matrix.os == 'windows-latest'
@@ -59,11 +59,9 @@ jobs:
     - name: Build (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        export PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig:$PKG_CONFIG_PATH
+        export PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig:$(brew --prefix poppler)/lib/pkgconfig:$PKG_CONFIG_PATH
         qmake M3Player.pro
         make -j$(nproc)
-
-
 
     - name: Package (Windows)
       if: matrix.os == 'windows-latest'
@@ -72,6 +70,9 @@ jobs:
         copy release\M3Player.exe dist\
         windeployqt dist\M3Player.exe
         copy C:\vcpkg\installed\x64-windows\bin\tag.dll dist\
+        copy C:\vcpkg\installed\x64-windows\bin\poppler-qt6.dll dist\
+        copy C:\vcpkg\installed\x64-windows\bin\poppler.dll dist\
+        copy C:\vcpkg\installed\x64-windows\bin\jpeg62.dll dist\
 
     - name: Upload artifact (Windows)
       if: matrix.os == 'windows-latest'

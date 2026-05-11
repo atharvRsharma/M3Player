@@ -9,23 +9,35 @@ VCPKG_ROOT = C:/vcpkg
 
 win32 {
     INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
-    LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib -ltag
+
+    LIBS += -L$$VCPKG_ROOT/installed/x64-windows/lib
+    LIBS += -ltag
+    LIBS += -lpoppler-qt6
+
     VCPKG_BIN = $$VCPKG_ROOT/installed/x64-windows/bin
     DESTDIR_WIN = $$shell_path($$OUT_PWD)
-    copytagdll.commands = copy /Y $$shell_path($$VCPKG_BIN/tag.dll) $$DESTDIR_WIN
+
+    copytagdll.commands = \
+        copy /Y $$shell_path($$VCPKG_BIN/tag.dll) $$DESTDIR_WIN & \
+        copy /Y $$shell_path($$VCPKG_BIN/poppler-qt6.dll) $$DESTDIR_WIN & \
+        copy /Y $$shell_path($$VCPKG_BIN/poppler.dll) $$DESTDIR_WIN & \
+        copy /Y $$shell_path($$VCPKG_BIN/jpeg62.dll) $$DESTDIR_WIN
+
     first.depends = $(first) copytagdll
+
     export(first.depends)
     export(copytagdll.commands)
+
     QMAKE_EXTRA_TARGETS += first copytagdll
 }
 
 unix {
     macx {
-        INCLUDEPATH += $$system(pkg-config --cflags-only-I taglib | sed 's/-I//g')
-        LIBS += $$system(pkg-config --libs taglib)
+        INCLUDEPATH += $$system(pkg-config --cflags-only-I taglib poppler-qt6 | sed 's/-I//g')
+        LIBS += $$system(pkg-config --libs taglib poppler-qt6)
     } else {
         CONFIG += link_pkgconfig
-        PKGCONFIG += taglib
+        PKGCONFIG += taglib poppler-qt6
     }
 }
 

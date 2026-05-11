@@ -35,8 +35,10 @@
 #include <QSpinBox>
 #include <QTreeView>
 #include <QPdfPageRenderer>
-#include <QtConcurrent>
+#include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
+#include <QtPdf/QPdfSelection>
+#include <poppler/qt6/poppler-qt6.h>
 
 
 #include <taglib/fileref.h>
@@ -142,7 +144,6 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 
     player->pause();
 }
-
 
 void VideoSlot::play() { player->play(); }
 
@@ -539,7 +540,6 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     zoomSelector      = new QComboBox(wrapper);
     bookmarkModel     = new QPdfBookmarkModel(wrapper);
     sidePanel         = new QWidget(wrapper);
-    // renderer           = new QPdfPageRenderer(wrapper);
     indexTabButton    = new QPushButton("idx", sidePanel);
     thumbnailTabButton = new QPushButton("pg", sidePanel);
 
@@ -559,7 +559,15 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     thumbnailScene      = new QGraphicsScene(thumbnailView);
 
 
+    auto doc1 = Poppler::Document::load(path);
 
+    if (!doc) {
+        qDebug() << "failed to load pdf";
+        return;
+    }
+
+    qDebug() << "pdf loaded";
+    qDebug() << "pages:" << doc1->numPages();
 
     if (auto *spin = pageSelector->findChild<QSpinBox*>())
         spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
@@ -633,8 +641,8 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     tabLayout->setSpacing(0);
     // tabLayout->addStretch();
     tabLayout->addWidget(indexTabButton);
-    // tabLayout->addStretch();
     tabLayout->addWidget(thumbnailTabButton);
+    tabLayout->addStretch();
     indexTabButton->setFixedSize(40, 28);
     thumbnailTabButton->setFixedSize(40, 28);
 
@@ -673,6 +681,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     pageSelector->setDocument(doc);
     searchModel->setDocument(doc);
     // populateThumbnailTab();
+
 
     nav = viewer->pageNavigator();
     viewer->setPageMode(QPdfView::PageMode::MultiPage);
@@ -740,7 +749,7 @@ void PdfSlot::menuZoom(const QString &text) {
         if (ok)
             factor = zoomLevel / 100.0;
 
-        zoom(factor);
+        viewer->setZoomFactor(factor);
     }
 }
 
@@ -792,6 +801,7 @@ void PdfSlot::enableSearch(bool x) {
         currentResultIndex = -1;
     }
 }
+
 
 void PdfSlot::enableSidePanel() {
     if (!sidePanel->isVisible()) {
@@ -848,7 +858,6 @@ void PdfSlot::showThumbnailTab() {
 void PdfSlot::populateThumbnailTab() {
     int pageCt = doc->pageCount();
     auto *watcher = new QFutureWatcher<QList<QPixmap>>();
-
     QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [this, watcher]() {
         auto pixmaps = watcher->result();
         qreal yOffset = 0;
@@ -884,6 +893,7 @@ void PdfSlot::populateThumbnailTab() {
         return pixmaps;
     });
 
+
     watcher->setFuture(future);
 }
 
@@ -903,13 +913,13 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance,
                      [this](int page) {
                          nav->jump(page, {}, nav->currentZoom());
-                     });
+    });
 
 
     QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
                      [this](const QString &text) {
                          menuZoom(text);
-                     });
+    });
 
 
     QObject::connect(searchField, &QLineEdit::textEdited, thisInstance, [this](const QString &text) {

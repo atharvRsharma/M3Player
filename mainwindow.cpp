@@ -1,4 +1,7 @@
 #include "mainwindow.h"
+#include "qpdfdocument.h"
+#include "qpdfpagenavigator.h"
+#include "qscrollbar.h"
 #include "ui_mainwindow.h"
 #include "mediatypes.h"
 
@@ -21,6 +24,7 @@
 #include <QComboBox>
 #include <QTreeView>
 #include <QGraphicsView>
+#include <QPdfView>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -180,8 +184,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         return true;
     }
 
+
+
     if (event->type() == QEvent::MouseButtonPress) {
         auto *e = static_cast<QMouseEvent*>(event);
+
         if (e->button() == Qt::LeftButton) {
             int i = findSlotIndex();
             bool ctrl = e->modifiers() & Qt::ControlModifier;
