@@ -34,7 +34,7 @@ jobs:
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        brew install taglib poppler poppler-qt6 pkg-config
+        brew install taglib poppler pkg-config
         echo "PKG_CONFIG_PATH=$(brew --prefix taglib)/lib/pkgconfig:$(brew --prefix poppler)/lib/pkgconfig" >> $GITHUB_ENV
 
     - name: Install dependencies (Windows)
