@@ -40,7 +40,7 @@ jobs:
         brew install poppler-qt6
         brew --prefix gocram/poppler-qt6/poppler-qt6 || echo "prefix failed"
         ls $(brew --prefix gocram/poppler-qt6/poppler-qt6)/lib/pkgconfig/ || echo "no pkgconfig dir"
-        echo "PKG_CONFIG_PATH=$(brew --prefix gocram/poppler-qt6/poppler-qt6)/lib/pkgconfig:$(brew --prefix taglib)/lib/pkgconfig" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=/opt/homebrew/opt/poppler-qt6/lib/pkgconfig:$(brew --prefix taglib)/lib/pkgconfig" >> $GITHUB_ENV
         
     - name: Cache vcpkg
       id: cache-vcpkg
