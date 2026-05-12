@@ -206,7 +206,6 @@ struct PdfSlot : MediaSlot {
     QGraphicsScene      *thumbnailScene;
     QPixmap             pixmap;
 
-
     QPushButton         *indexTabButton;
 
 
