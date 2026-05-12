@@ -207,7 +207,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
                 highlight();
                 setFocus();
-                if (mediaSlots[i]->type() == "pdf" || mediaSlots[i]->type() == "image") return false;
+                if (/*mediaSlots[i]->type() == "pdf" ||*/ mediaSlots[i]->type() == "image") return false;
                 return true;
             }
 
@@ -270,25 +270,25 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
         }
         else {
-            if (mediaSlots[fullscreenIndex]->type() == "pdf" && mediaSlots[fullscreenIndex]->wrapper == obj) {
-                auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
-                int findBarH = pdf->findBar->sizeHint().height();
-                if (pdf->findBar->isVisible()) {
-                    pdf->findBar->setGeometry(0, pdf->wrapper->height() - findBarH,
-                                              pdf->findBar->maximumWidth(), findBarH);
-                }
+            // if (mediaSlots[fullscreenIndex]->type() == "pdf" && mediaSlots[fullscreenIndex]->wrapper == obj) {
+            //     auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+            //     int findBarH = pdf->findBar->sizeHint().height();
+            //     if (pdf->findBar->isVisible()) {
+            //         pdf->findBar->setGeometry(0, pdf->wrapper->height() - findBarH,
+            //                                   pdf->findBar->maximumWidth(), findBarH);
+            //     }
 
-                if (pdf->sidePanel->isVisible()) {
-                    QRect r = pdf->wrapper->rect();
-                    int navH = pdf->navBar->sizeHint().height();
-                    int actualBarH = pdf->findBar->isVisible() ? findBarH : 0;
-                    pdf->sidePanel->setGeometry(3, navH + 2, r.width() / 5,
-                                                r.height() - navH - 4 - actualBarH);
-                }
+            //     if (pdf->sidePanel->isVisible()) {
+            //         QRect r = pdf->wrapper->rect();
+            //         int navH = pdf->navBar->sizeHint().height();
+            //         int actualBarH = pdf->findBar->isVisible() ? findBarH : 0;
+            //         pdf->sidePanel->setGeometry(3, navH + 2, r.width() / 5,
+            //                                     r.height() - navH - 4 - actualBarH);
+            //     }
 
-                pdf->border->setGeometry(pdf->wrapper->rect());
-                return true;
-            }
+            //     pdf->border->setGeometry(pdf->wrapper->rect());
+            //     return true;
+            // }
             mediaSlots[fullscreenIndex]->wrapper->setGeometry(container->rect());
             mediaSlots[fullscreenIndex]->border->setGeometry(mediaSlots[fullscreenIndex]->wrapper->rect());
         }
@@ -331,10 +331,10 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 
         if (e->key() == Qt::Key_F) {
             if (e->key() == Qt::Key_F && e->modifiers() & Qt::ControlModifier) {
-                if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
-                    auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
-                    pdf->enableSearch(true);
-                }
+                // if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
+                //     auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+                //     pdf->enableSearch(true);
+                // }
             }
             else if(e->key() == Qt::Key_F && !e->modifiers()) {
                 if (fullscreenIndex == -1) {
@@ -346,11 +346,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
 
         if(e->key() == Qt::Key_Escape) {
-            if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
+            /*if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
                 auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
                 pdf->enableSearch(false);
             }
-            else if (fullscreenIndex != -1) exitFullscreen();
+            else*/ if (fullscreenIndex != -1) exitFullscreen();
 
         }
 
@@ -380,9 +380,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                 }
                 else {
                     if (vertValue != 0) {
-                        if (mediaSlots[fullscreenIndex]->type() == "pdf")
+                        /*if (mediaSlots[fullscreenIndex]->type() == "pdf")
                             mediaSlots[fullscreenIndex]->scroll(vertValue * -40);
-                        else {
+                        else*/ {
                             mediaSlots[fullscreenIndex]->adjustVolume(vertValue * 0.05f);
                             volSlider->setValue(mediaSlots[fullscreenIndex]->getVolume() * 100);
                         }
@@ -459,15 +459,15 @@ void MainWindow::toggleSettings() {
 
 void MainWindow::enterFullscreen(int index)
 {
-    if (mediaSlots[index]->type() != "pdf" || mediaSlots[index]->type() != "image") action->setVisible(true);
-    else action->setVisible(false);
+    // if (mediaSlots[index]->type() != "pdf" || mediaSlots[index]->type() != "image") action->setVisible(true);
+    /*else*/ action->setVisible(false);
     ui->toolBar_2->update();
     fullscreenIndex = index;
 
-    if (mediaSlots[index]->type() == "pdf") {
-        auto *pdf = static_cast<PdfSlot*>(mediaSlots[index].get());
-        pdf->navBar->show();
-    }
+    // if (mediaSlots[index]->type() == "pdf") {
+    //     auto *pdf = static_cast<PdfSlot*>(mediaSlots[index].get());
+    //     pdf->navBar->show();
+    // }
 
     grid->removeWidget(mediaSlots[index]->wrapper);
     mediaSlots[index]->wrapper->setParent(container);
@@ -488,12 +488,12 @@ void MainWindow::enterFullscreen(int index)
 void MainWindow::exitFullscreen()
 {
     if (fullscreenIndex != -1) {
-        if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
-            auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
-            pdf->navBar->hide();
-            pdf->sidePanel->hide();
-            pdf->findBar->hide();
-        }
+        // if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
+        //     auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+        //     pdf->navBar->hide();
+        //     pdf->sidePanel->hide();
+        //     pdf->findBar->hide();
+        // }
         settings->hide();
 
         action->setVisible(false);

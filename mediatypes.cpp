@@ -72,11 +72,11 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
         return slot;
     }
 
-    if (pdf.contains(ext)) {
-        auto slot = std::make_unique<PdfSlot>();
-        slot->load(path, parent, thisInstance);
-        return slot;
-    }
+    // if (pdf.contains(ext)) {
+    //     auto slot = std::make_unique<PdfSlot>();
+    //     slot->load(path, parent, thisInstance);
+    //     return slot;
+    // }
 
     return nullptr;
 }
@@ -529,508 +529,432 @@ void ImageSlot::zoom(qreal x)  {
 
 //PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
-void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
-    wrapper           = new QWidget(parent);
-    viewer            = new QPdfView(wrapper);
-    doc               = new QPdfDocument(wrapper);
-    border            = new QWidget(wrapper);
-    pageSelector      = new QPdfPageSelector(wrapper);
-    searchModel       = new QPdfSearchModel(wrapper);
-    searchField       = new QLineEdit(wrapper);
-    zoomSelector      = new QComboBox(wrapper);
-    bookmarkModel     = new QPdfBookmarkModel(wrapper);
-    sidePanel         = new QWidget(wrapper);
-    indexTabButton    = new QPushButton("idx", sidePanel);
-    thumbnailTabButton = new QPushButton("pg", sidePanel);
-
-    bookmarkTree      = new QTreeView(sidePanel);
-
-    findBar           = new QWidget(wrapper);
-    findPrev          = new QPushButton("<-", findBar);
-    findNext          = new QPushButton("->", findBar);
-    findClose         = new QPushButton("x", findBar);
-
-    navBar            = new QWidget(wrapper);
-    prevPage          = new QPushButton("↑", navBar);
-    nextPage          = new QPushButton("↓", navBar);
-    sidePanelButton   = new QPushButton("=", navBar);
-
-    thumbnailView       = new QGraphicsView(sidePanel);
-    thumbnailScene      = new QGraphicsScene(thumbnailView);
-
-
-    auto doc1 = Poppler::Document::load(path);
-
-    if (!doc) {
-        qDebug() << "failed to load pdf";
-        return;
-    }
-
-    qDebug() << "pdf loaded";
-    qDebug() << "pages:" << doc1->numPages();
-
-    if (auto *spin = pageSelector->findChild<QSpinBox*>())
-        spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
-
-
-    findBar->setMaximumWidth(420);
-    findBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-
-    sidePanel->hide();
-    bookmarkTree->hide();
-    thumbnailView->hide();
-    sidePanelButton->setMaximumWidth(40);
-
-    navBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    navBar->setFixedHeight(36);
-    navBar->raise();
-    navBar->hide();
-
-
-    auto *findLayout = new QHBoxLayout(findBar);
-    findLayout->setContentsMargins(4, 2, 4, 2);
-    findLayout->setSpacing(4);
-    findLayout->addWidget(searchField);
-    findLayout->addWidget(findPrev);
-    findLayout->addWidget(findNext);
-    findLayout->addWidget(findClose);
-
-
-    auto *navLayout = new QHBoxLayout(navBar);
-    navLayout->setContentsMargins(8, 2, 8, 2);
-    navLayout->setSpacing(4);
-    navLayout->addWidget(sidePanelButton);
-    navLayout->addWidget(zoomSelector);
-
-
-
-
-
-    pageSelector->setFixedHeight(32);
-    pageSelector->setMaximumWidth(90);
-    zoomSelector->setFixedHeight(32);
-    zoomSelector->setMinimumWidth(120);
-
-
-    sidePanelButton->setMinimumWidth(40);
-
-
-    navLayout->addStretch();
-    navLayout->addWidget(prevPage);
-    navLayout->addWidget(pageSelector);
-    navLayout->addWidget(nextPage);
-
-
-    prevPage->setFixedSize(30, 30);
-    nextPage->setFixedSize(30, 30);
-
-
-    auto *sidePanelLayout = new QVBoxLayout(sidePanel);
-    sidePanelLayout->setContentsMargins(0, 0, 0, 0);
-    sidePanelLayout->setSpacing(0);
-    sidePanelLayout->setAlignment(Qt::AlignTop);
-    sidePanel->setStyleSheet("background-color: #111111;");
-    sidePanel->setWindowOpacity(0.55);
-
-    auto *tabBar = new QWidget(sidePanel);
-    tabBar->setFixedHeight(32);
-
-    auto *tabLayout = new QHBoxLayout(tabBar);
-    tabLayout->setContentsMargins(4, 2, 4, 2);
-    tabLayout->setSpacing(0);
-    // tabLayout->addStretch();
-    tabLayout->addWidget(indexTabButton);
-    tabLayout->addWidget(thumbnailTabButton);
-    tabLayout->addStretch();
-    indexTabButton->setFixedSize(40, 28);
-    thumbnailTabButton->setFixedSize(40, 28);
-
-    sidePanelLayout->addWidget(tabBar);
-    sidePanelLayout->addWidget(bookmarkTree, 1);
-    sidePanelLayout->addWidget(thumbnailView, 1);
-
-    auto *layout = new QVBoxLayout(wrapper);
-    layout->setContentsMargins(0,0,0,0);
-    layout->setSpacing(0);
-    layout->addWidget(navBar);
-    layout->addWidget(viewer, 1);
-
-    wrapper->setAcceptDrops(true);
-    wrapper->installEventFilter(thisInstance);
-    wrapper->setAttribute(Qt::WA_Hover);
-
-    initComboBox();
-
-    viewer->viewport()->installEventFilter(thisInstance);
-    viewer->viewport()->setAcceptDrops(true);
-
-    border->setAttribute(Qt::WA_TransparentForMouseEvents);
-    border->setGeometry(wrapper->rect());
-    border->raise();
-
-
-    if (!doc) {
-        return;
-    }
-    doc->load(path);
-    filePath = path;
-
-    viewer->setDocument(doc);
-    bookmarkModel->setDocument(doc);
-    pageSelector->setDocument(doc);
-    searchModel->setDocument(doc);
-    // populateThumbnailTab();
-
-
-    nav = viewer->pageNavigator();
-    viewer->setPageMode(QPdfView::PageMode::MultiPage);
-    viewer->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    viewer->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    viewer->setSearchModel(searchModel);
-
-    searchField->setPlaceholderText(QString("Find in document"));
-    searchField->setMaximumWidth(400);
-    findBar->raise();
-    findBar->hide();
-    connectSlots(thisInstance);
-}
-
-void PdfSlot::searchResultsChanged(const QModelIndex &current, const QModelIndex &previous) {
-    Q_UNUSED(previous);
-    if (!current.isValid())
-        return;
-    const int page = current.data(int(QPdfSearchModel::Role::Page)).toInt();
-    const QPointF location = current.data(int(QPdfSearchModel::Role::Location)).toPointF();
-    viewer->pageNavigator()->jump(page, location);
-    viewer->setCurrentSearchResultIndex(current.row());
-}
-
-void PdfSlot::nextResult() {
-    int count = searchModel->rowCount(QModelIndex());
-    if (count == 0) return;
-    currentResultIndex = (currentResultIndex + 1) % count;
-    jumpToResult(currentResultIndex);
-}
-
-void PdfSlot::prevResult() {
-    int count = searchModel->rowCount(QModelIndex());
-    if (count == 0) return;
-    currentResultIndex = (currentResultIndex - 1 + count) % count;
-    jumpToResult(currentResultIndex);
-}
-
-void PdfSlot::jumpToResult(int i) {
-    QModelIndex idx = searchModel->index(i, 0);
-    if (!idx.isValid()) return;
-    const int page = idx.data(int(QPdfSearchModel::Role::Page)).toInt();
-    const QPointF loc = idx.data(int(QPdfSearchModel::Role::Location)).toPointF();
-    nav->jump(page, loc);
-    viewer->setCurrentSearchResultIndex(i);
-}
-
-void PdfSlot::menuZoom(const QString &text) {
-    if (text == QLatin1String("Fit Width")) {
-        viewer->setZoomMode(QPdfView::ZoomMode::FitToWidth);
-    }
-
-    else if (text == QLatin1String("Fit Page")) {
-        viewer->setZoomMode(QPdfView::ZoomMode::FitInView);
-    }
-
-    else {
-        factor = 1.0;
-
-        QString withoutPercent(text);
-        withoutPercent.remove(QLatin1Char('%'));
-
-        bool ok = false;
-        const int zoomLevel = withoutPercent.toInt(&ok);
-        if (ok)
-            factor = zoomLevel / 100.0;
-
-        viewer->setZoomFactor(factor);
-    }
-}
-
-
-void PdfSlot::zoom(qreal x) {
-    viewer->setZoomMode(QPdfView::ZoomMode::Custom);
-    viewer->setZoomFactor(viewer->zoomFactor() * x);
-}
-
-void PdfSlot::forward() {
-    nav->jump(nav->currentPage() + 1, {}, nav->currentZoom());
-}
-
-void PdfSlot::backward() {
-    nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
-}
-
-void PdfSlot::scroll(int x) {
-    viewer->verticalScrollBar()->setValue( viewer->verticalScrollBar()->value() + (x));
-}
-
-void PdfSlot::reset() {
-    zoomSelector->setCurrentIndex(8);
-}
-
-void PdfSlot::enableSearch(bool x) {
-    findBar->setVisible(x);
-    if (x) {
-        int barH = findBar->sizeHint().height();
-        findBar->setGeometry(0, wrapper->height() - barH,
-                             findBar->maximumWidth(), barH);
-        if (sidePanel->isVisible()) {
-            QRect r = wrapper->rect();
-            int navH = navBar->sizeHint().height();
-            sidePanel->setGeometry(3, navH + 2, r.width() / 4,
-                                   r.height() - navH - 4 - barH);
-        }
-        searchField->setFocus();
-        searchField->selectAll();
-    } else {
-        if (sidePanel->isVisible()) {
-            QRect r = wrapper->rect();
-            int navH = navBar->sizeHint().height();
-            sidePanel->setGeometry(3, navH + 2, r.width() / 4,
-                                   r.height() - navH - 4);
-        }
-        searchField->clear();
-        searchModel->setSearchString("");
-        currentResultIndex = -1;
-    }
-}
-
-
-void PdfSlot::enableSidePanel() {
-    if (!sidePanel->isVisible()) {
-        QRect r = wrapper->rect();
-        int previewWidth = r.width() / 5;
-        int navH = navBar->sizeHint().height();
-        int barH = findBar->isVisible() ? findBar->sizeHint().height() : 0;
-        sidePanel->setGeometry(3, navH + 2, previewWidth,
-                               r.height() - navH - 4 - barH);
-        bookmarkTree->setModel(bookmarkModel);
-        sidePanel->setVisible(true);
-    }
-    else sidePanel->setVisible(false);
-}
-
-void PdfSlot::initComboBox() {
-    zoomSelector->setEditable(true);
-    zoomSelector->addItem(QLatin1String("Fit Width"));
-    zoomSelector->addItem(QLatin1String("Fit Page"));
-    zoomSelector->addItem(QLatin1String("12%"));
-    zoomSelector->addItem(QLatin1String("25%"));
-    zoomSelector->addItem(QLatin1String("33%"));
-    zoomSelector->addItem(QLatin1String("50%"));
-    zoomSelector->addItem(QLatin1String("66%"));
-    zoomSelector->addItem(QLatin1String("75%"));
-    zoomSelector->addItem(QLatin1String("100%"));
-    zoomSelector->addItem(QLatin1String("125%"));
-    zoomSelector->addItem(QLatin1String("150%"));
-    zoomSelector->addItem(QLatin1String("200%"));
-    zoomSelector->addItem(QLatin1String("400%"));
-}
-
-void PdfSlot::showIndexTab() {
-    if(!bookmarkTree->isVisible()) {
-        if(thumbnailView->isVisible()) thumbnailView->setVisible(false);
-        bookmarkTree->setVisible(true);
-    }
-    else  bookmarkTree->hide();
-}
-
-void PdfSlot::showThumbnailTab() {
-    if (!thumbnailView->isVisible()) {
-        if (bookmarkTree->isVisible()) bookmarkTree->setVisible(false);
-        if (!thumbnailsLoaded) {
-            populateThumbnailTab();
-            thumbnailsLoaded = true;
-        }
-        thumbnailView->setVisible(true);
-    }
-    else thumbnailView->hide();
-}
-
-
-void PdfSlot::populateThumbnailTab() {
-    int pageCt = doc->pageCount();
-    auto *watcher = new QFutureWatcher<QList<QPixmap>>();
-    QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [this, watcher]() {
-        auto pixmaps = watcher->result();
-        qreal yOffset = 0;
-        for (auto &pix : pixmaps) {
-            auto *item = new QGraphicsPixmapItem(pix);
-            item->setPos(0, yOffset);
-            item->setTransformationMode(Qt::SmoothTransformation);
-            thumbnailScene->addItem(item);
-            yOffset += pix.height() + 10;
-        }
-        thumbnailView->setScene(thumbnailScene);
-        thumbnailView->setAlignment(Qt::AlignTop);
-        QRectF contentRect = thumbnailScene->itemsBoundingRect();
-        thumbnailView->setSceneRect(contentRect);
-        watcher->deleteLater();
-    });
-
-    auto future = QtConcurrent::run([this, pageCt]() {
-        QPdfDocument thumbDoc;
-        thumbDoc.load(filePath);
-        QList<QPixmap> pixmaps;
-        for (int i = 0; i < pageCt; ++i) {
-            //QSizeF pageSize = thumbDoc.pagePointSize(i) / 1.5;
-            QSize renderSize = QSize(120, 200);
-            auto img = thumbDoc.render(i, renderSize);
-            QImage filledImg(renderSize, QImage::Format_RGB32);
-            filledImg.fill(Qt::white);
-            QPainter p(&filledImg);
-            p.drawImage(0, 0, img);
-            p.end();
-            pixmaps.append(QPixmap::fromImage(filledImg));
-        }
-        return pixmaps;
-    });
-
-
-    watcher->setFuture(future);
-}
-
-
-
-void PdfSlot::connectSlots(QObject* thisInstance) {
-    QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this]() {
-        nextResult();
-    });
-    QObject::connect(findPrev, &QPushButton::clicked, thisInstance, [this]() {
-        prevResult();
-    });
-    QObject::connect(findClose, &QPushButton::clicked, thisInstance, [this]() {
-        enableSearch(false);
-    });
-
-    QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance,
-                     [this](int page) {
-                         nav->jump(page, {}, nav->currentZoom());
-    });
-
-
-    QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
-                     [this](const QString &text) {
-                         menuZoom(text);
-    });
-
-
-    QObject::connect(searchField, &QLineEdit::textEdited, thisInstance, [this](const QString &text) {
-        searchModel->setSearchString(text);
-        currentResultIndex = -1;
-    });
-
-    QObject::connect(bookmarkTree, &QTreeView::clicked, thisInstance, [this](const QModelIndex &index) {
-        int page = index.data(int(QPdfBookmarkModel::Role::Page)).toInt();
-        nav->jump(page, {}, nav->currentZoom());
-    });
-
-    QObject::connect(prevPage, &QPushButton::clicked, thisInstance, [this]() {
-        nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
-    });
-    QObject::connect(nextPage, &QPushButton::clicked, thisInstance, [this]() {
-        nav->jump(nav->currentPage() + 1, {}, nav->currentZoom());
-    });
-    QObject::connect(sidePanelButton, &QPushButton::clicked, thisInstance, [this] {
-        enableSidePanel();
-    });
-    QObject::connect(indexTabButton, &QPushButton::clicked, thisInstance, [this] {
-        showIndexTab();
-    });
-    QObject::connect(thumbnailTabButton, &QPushButton::clicked, thisInstance, [this] {
-        showThumbnailTab();
-    });
-}
-
-
-PdfSlot::~PdfSlot() {
-    doc->close();
-}
-
-//\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
-
-
-
-//PDFPDFPDPFPDFPDF===MINIMAL==============================================================================================================
-
-// void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {    minimal
-//     wrapper      = new QWidget(parent);
-//     viewer       = new QGraphicsView(wrapper);
-//     scene        = new QGraphicsScene(viewer);
-//     doc          = new QPdfDocument(wrapper);
-//     border       = new QWidget(wrapper);
-
-//     pageSelector = new QPdfPageSelector(wrapper);
-//     searchModel = new QPdfSearchModel(wrapper);
-//     searchField = new QLineEdit(wrapper);
-//     //renderer     = new QPdfPageRenderer(wrapper);
-//     auto *layout = new QVBoxLayout(wrapper);
-
-//     layout->setContentsMargins(0,0,0,0);
-//     layout->addWidget(viewer);
+// void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
+//     wrapper           = new QWidget(parent);
+//     viewer            = new QPdfView(wrapper);
+//     doc               = new QPdfDocument(wrapper);
+//     border            = new QWidget(wrapper);
+//     pageSelector      = new QPdfPageSelector(wrapper);
+//     searchModel       = new QPdfSearchModel(wrapper);
+//     searchField       = new QLineEdit(wrapper);
+//     zoomSelector      = new QComboBox(wrapper);
+//     bookmarkModel     = new QPdfBookmarkModel(wrapper);
+//     sidePanel         = new QWidget(wrapper);
+//     indexTabButton    = new QPushButton("idx", sidePanel);
+//     thumbnailTabButton = new QPushButton("pg", sidePanel);
+
+//     bookmarkTree      = new QTreeView(sidePanel);
+
+//     findBar           = new QWidget(wrapper);
+//     findPrev          = new QPushButton("<-", findBar);
+//     findNext          = new QPushButton("->", findBar);
+//     findClose         = new QPushButton("x", findBar);
+
+//     navBar            = new QWidget(wrapper);
+//     prevPage          = new QPushButton("↑", navBar);
+//     nextPage          = new QPushButton("↓", navBar);
+//     sidePanelButton   = new QPushButton("=", navBar);
+
+//     thumbnailView       = new QGraphicsView(sidePanel);
+//     thumbnailScene      = new QGraphicsScene(thumbnailView);
+
+
+//     auto doc1 = Poppler::Document::load(path);
 
 //     if (!doc) {
+//         qDebug() << "failed to load pdf";
 //         return;
 //     }
 
-//     doc->load(path);
-//     // renderer->setDocument(doc);
-//     // renderer->setRenderMode(QPdfPageRenderer::RenderMode::MultiThreaded);
+//     qDebug() << "pdf loaded";
+//     qDebug() << "pages:" << doc1->numPages();
 
-//     QPdfDocumentRenderOptions opts;
-//     opts.setRenderFlags(QPdfDocumentRenderOptions::RenderFlag::Annotations);
-//     //renderer->requestPage(0, QSize(800, 1000));
+//     if (auto *spin = pageSelector->findChild<QSpinBox*>())
+//         spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
 
-//     //qDebug() << "page count:" << doc->pageCount() << "status:" << doc->status();
-//     int pageCt = doc->pageCount();
 
-//     qreal yOffset = 0;
+//     findBar->setMaximumWidth(420);
+//     findBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-//     for (int i{}; i < pageCt; ++i) {
-//         QSizeF pageSize = doc->pagePointSize(i);
-//         QSize renderSize = (pageSize * 2.0).toSize();
 
-//         auto img = doc->render(i, renderSize, opts);
-//         QImage filledImg(renderSize, QImage::Format_RGB32);
-//         filledImg.fill(Qt::white);
-//         QPainter p(&filledImg);
-//         p.drawImage(0, 0, img);
-//         p.end();
-//         QPixmap pix = QPixmap::fromImage(filledImg);
-//         auto *item = new QGraphicsPixmapItem(pix);
-//         item->setPos(0, yOffset);
-//         scene->addItem(item);
-//         yOffset += pix.height() + 10;
-//     }
+//     sidePanel->hide();
+//     bookmarkTree->hide();
+//     thumbnailView->hide();
+//     sidePanelButton->setMaximumWidth(40);
 
-//     //viewer->setSceneRect(QRectF());
+//     navBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+//     navBar->setFixedHeight(36);
+//     navBar->raise();
+//     navBar->hide();
 
-//     viewer->setDragMode(QGraphicsView::ScrollHandDrag);
 
-//     viewer->setAcceptDrops(true);
-//     viewer->installEventFilter(thisInstance);
-//     viewer->viewport()->installEventFilter(thisInstance);
-//     viewer->viewport()->setAcceptDrops(true);
+//     auto *findLayout = new QHBoxLayout(findBar);
+//     findLayout->setContentsMargins(4, 2, 4, 2);
+//     findLayout->setSpacing(4);
+//     findLayout->addWidget(searchField);
+//     findLayout->addWidget(findPrev);
+//     findLayout->addWidget(findNext);
+//     findLayout->addWidget(findClose);
+
+
+//     auto *navLayout = new QHBoxLayout(navBar);
+//     navLayout->setContentsMargins(8, 2, 8, 2);
+//     navLayout->setSpacing(4);
+//     navLayout->addWidget(sidePanelButton);
+//     navLayout->addWidget(zoomSelector);
+
+
+
+
+
+//     pageSelector->setFixedHeight(32);
+//     pageSelector->setMaximumWidth(90);
+//     zoomSelector->setFixedHeight(32);
+//     zoomSelector->setMinimumWidth(120);
+
+
+//     sidePanelButton->setMinimumWidth(40);
+
+
+//     navLayout->addStretch();
+//     navLayout->addWidget(prevPage);
+//     navLayout->addWidget(pageSelector);
+//     navLayout->addWidget(nextPage);
+
+
+//     prevPage->setFixedSize(30, 30);
+//     nextPage->setFixedSize(30, 30);
+
+
+//     auto *sidePanelLayout = new QVBoxLayout(sidePanel);
+//     sidePanelLayout->setContentsMargins(0, 0, 0, 0);
+//     sidePanelLayout->setSpacing(0);
+//     sidePanelLayout->setAlignment(Qt::AlignTop);
+//     sidePanel->setStyleSheet("background-color: #111111;");
+//     sidePanel->setWindowOpacity(0.55);
+
+//     auto *tabBar = new QWidget(sidePanel);
+//     tabBar->setFixedHeight(32);
+
+//     auto *tabLayout = new QHBoxLayout(tabBar);
+//     tabLayout->setContentsMargins(4, 2, 4, 2);
+//     tabLayout->setSpacing(0);
+//     // tabLayout->addStretch();
+//     tabLayout->addWidget(indexTabButton);
+//     tabLayout->addWidget(thumbnailTabButton);
+//     tabLayout->addStretch();
+//     indexTabButton->setFixedSize(40, 28);
+//     thumbnailTabButton->setFixedSize(40, 28);
+
+//     sidePanelLayout->addWidget(tabBar);
+//     sidePanelLayout->addWidget(bookmarkTree, 1);
+//     sidePanelLayout->addWidget(thumbnailView, 1);
+
+//     auto *layout = new QVBoxLayout(wrapper);
+//     layout->setContentsMargins(0,0,0,0);
+//     layout->setSpacing(0);
+//     layout->addWidget(navBar);
+//     layout->addWidget(viewer, 1);
+
 //     wrapper->setAcceptDrops(true);
 //     wrapper->installEventFilter(thisInstance);
 //     wrapper->setAttribute(Qt::WA_Hover);
-//     viewer->setScene(scene);
-//     viewer->setBackgroundBrush(Qt::black);
-//     viewer->setAlignment(Qt::AlignTop);
-//     viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
 
-//     QRectF contentRect = scene->itemsBoundingRect();
-//     viewer->setSceneRect(contentRect.adjusted(-5000, -500, 5000, 500));
+//     initComboBox();
+
+//     viewer->viewport()->installEventFilter(thisInstance);
+//     viewer->viewport()->setAcceptDrops(true);
 
 //     border->setAttribute(Qt::WA_TransparentForMouseEvents);
 //     border->setGeometry(wrapper->rect());
 //     border->raise();
+
+
+//     if (!doc) {
+//         return;
+//     }
+//     doc->load(path);
+//     filePath = path;
+
+//     viewer->setDocument(doc);
+//     bookmarkModel->setDocument(doc);
+//     pageSelector->setDocument(doc);
+//     searchModel->setDocument(doc);
+//     // populateThumbnailTab();
+
+
+//     nav = viewer->pageNavigator();
+//     viewer->setPageMode(QPdfView::PageMode::MultiPage);
+//     viewer->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+//     viewer->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+//     viewer->setSearchModel(searchModel);
+
+//     searchField->setPlaceholderText(QString("Find in document"));
+//     searchField->setMaximumWidth(400);
+//     findBar->raise();
+//     findBar->hide();
+//     connectSlots(thisInstance);
 // }
+
+// void PdfSlot::searchResultsChanged(const QModelIndex &current, const QModelIndex &previous) {
+//     Q_UNUSED(previous);
+//     if (!current.isValid())
+//         return;
+//     const int page = current.data(int(QPdfSearchModel::Role::Page)).toInt();
+//     const QPointF location = current.data(int(QPdfSearchModel::Role::Location)).toPointF();
+//     viewer->pageNavigator()->jump(page, location);
+//     viewer->setCurrentSearchResultIndex(current.row());
+// }
+
+// void PdfSlot::nextResult() {
+//     int count = searchModel->rowCount(QModelIndex());
+//     if (count == 0) return;
+//     currentResultIndex = (currentResultIndex + 1) % count;
+//     jumpToResult(currentResultIndex);
+// }
+
+// void PdfSlot::prevResult() {
+//     int count = searchModel->rowCount(QModelIndex());
+//     if (count == 0) return;
+//     currentResultIndex = (currentResultIndex - 1 + count) % count;
+//     jumpToResult(currentResultIndex);
+// }
+
+// void PdfSlot::jumpToResult(int i) {
+//     QModelIndex idx = searchModel->index(i, 0);
+//     if (!idx.isValid()) return;
+//     const int page = idx.data(int(QPdfSearchModel::Role::Page)).toInt();
+//     const QPointF loc = idx.data(int(QPdfSearchModel::Role::Location)).toPointF();
+//     nav->jump(page, loc);
+//     viewer->setCurrentSearchResultIndex(i);
+// }
+
+// void PdfSlot::menuZoom(const QString &text) {
+//     if (text == QLatin1String("Fit Width")) {
+//         viewer->setZoomMode(QPdfView::ZoomMode::FitToWidth);
+//     }
+
+//     else if (text == QLatin1String("Fit Page")) {
+//         viewer->setZoomMode(QPdfView::ZoomMode::FitInView);
+//     }
+
+//     else {
+//         factor = 1.0;
+
+//         QString withoutPercent(text);
+//         withoutPercent.remove(QLatin1Char('%'));
+
+//         bool ok = false;
+//         const int zoomLevel = withoutPercent.toInt(&ok);
+//         if (ok)
+//             factor = zoomLevel / 100.0;
+
+//         viewer->setZoomFactor(factor);
+//     }
+// }
+
+
+// void PdfSlot::zoom(qreal x) {
+//     viewer->setZoomMode(QPdfView::ZoomMode::Custom);
+//     viewer->setZoomFactor(viewer->zoomFactor() * x);
+// }
+
+// void PdfSlot::forward() {
+//     nav->jump(nav->currentPage() + 1, {}, nav->currentZoom());
+// }
+
+// void PdfSlot::backward() {
+//     nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
+// }
+
+// void PdfSlot::scroll(int x) {
+//     viewer->verticalScrollBar()->setValue( viewer->verticalScrollBar()->value() + (x));
+// }
+
+// void PdfSlot::reset() {
+//     zoomSelector->setCurrentIndex(8);
+// }
+
+// void PdfSlot::enableSearch(bool x) {
+//     findBar->setVisible(x);
+//     if (x) {
+//         int barH = findBar->sizeHint().height();
+//         findBar->setGeometry(0, wrapper->height() - barH,
+//                              findBar->maximumWidth(), barH);
+//         if (sidePanel->isVisible()) {
+//             QRect r = wrapper->rect();
+//             int navH = navBar->sizeHint().height();
+//             sidePanel->setGeometry(3, navH + 2, r.width() / 4,
+//                                    r.height() - navH - 4 - barH);
+//         }
+//         searchField->setFocus();
+//         searchField->selectAll();
+//     } else {
+//         if (sidePanel->isVisible()) {
+//             QRect r = wrapper->rect();
+//             int navH = navBar->sizeHint().height();
+//             sidePanel->setGeometry(3, navH + 2, r.width() / 4,
+//                                    r.height() - navH - 4);
+//         }
+//         searchField->clear();
+//         searchModel->setSearchString("");
+//         currentResultIndex = -1;
+//     }
+// }
+
+
+// void PdfSlot::enableSidePanel() {
+//     if (!sidePanel->isVisible()) {
+//         QRect r = wrapper->rect();
+//         int previewWidth = r.width() / 5;
+//         int navH = navBar->sizeHint().height();
+//         int barH = findBar->isVisible() ? findBar->sizeHint().height() : 0;
+//         sidePanel->setGeometry(3, navH + 2, previewWidth,
+//                                r.height() - navH - 4 - barH);
+//         bookmarkTree->setModel(bookmarkModel);
+//         sidePanel->setVisible(true);
+//     }
+//     else sidePanel->setVisible(false);
+// }
+
+// void PdfSlot::initComboBox() {
+//     zoomSelector->setEditable(true);
+//     zoomSelector->addItem(QLatin1String("Fit Width"));
+//     zoomSelector->addItem(QLatin1String("Fit Page"));
+//     zoomSelector->addItem(QLatin1String("12%"));
+//     zoomSelector->addItem(QLatin1String("25%"));
+//     zoomSelector->addItem(QLatin1String("33%"));
+//     zoomSelector->addItem(QLatin1String("50%"));
+//     zoomSelector->addItem(QLatin1String("66%"));
+//     zoomSelector->addItem(QLatin1String("75%"));
+//     zoomSelector->addItem(QLatin1String("100%"));
+//     zoomSelector->addItem(QLatin1String("125%"));
+//     zoomSelector->addItem(QLatin1String("150%"));
+//     zoomSelector->addItem(QLatin1String("200%"));
+//     zoomSelector->addItem(QLatin1String("400%"));
+// }
+
+// void PdfSlot::showIndexTab() {
+//     if(!bookmarkTree->isVisible()) {
+//         if(thumbnailView->isVisible()) thumbnailView->setVisible(false);
+//         bookmarkTree->setVisible(true);
+//     }
+//     else  bookmarkTree->hide();
+// }
+
+// void PdfSlot::showThumbnailTab() {
+//     if (!thumbnailView->isVisible()) {
+//         if (bookmarkTree->isVisible()) bookmarkTree->setVisible(false);
+//         if (!thumbnailsLoaded) {
+//             populateThumbnailTab();
+//             thumbnailsLoaded = true;
+//         }
+//         thumbnailView->setVisible(true);
+//     }
+//     else thumbnailView->hide();
+// }
+
+
+// void PdfSlot::populateThumbnailTab() {
+//     int pageCt = doc->pageCount();
+//     auto *watcher = new QFutureWatcher<QList<QPixmap>>();
+//     QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [this, watcher]() {
+//         auto pixmaps = watcher->result();
+//         qreal yOffset = 0;
+//         for (auto &pix : pixmaps) {
+//             auto *item = new QGraphicsPixmapItem(pix);
+//             item->setPos(0, yOffset);
+//             item->setTransformationMode(Qt::SmoothTransformation);
+//             thumbnailScene->addItem(item);
+//             yOffset += pix.height() + 10;
+//         }
+//         thumbnailView->setScene(thumbnailScene);
+//         thumbnailView->setAlignment(Qt::AlignTop);
+//         QRectF contentRect = thumbnailScene->itemsBoundingRect();
+//         thumbnailView->setSceneRect(contentRect);
+//         watcher->deleteLater();
+//     });
+
+//     auto future = QtConcurrent::run([this, pageCt]() {
+//         QPdfDocument thumbDoc;
+//         thumbDoc.load(filePath);
+//         QList<QPixmap> pixmaps;
+//         for (int i = 0; i < pageCt; ++i) {
+//             //QSizeF pageSize = thumbDoc.pagePointSize(i) / 1.5;
+//             QSize renderSize = QSize(120, 200);
+//             auto img = thumbDoc.render(i, renderSize);
+//             QImage filledImg(renderSize, QImage::Format_RGB32);
+//             filledImg.fill(Qt::white);
+//             QPainter p(&filledImg);
+//             p.drawImage(0, 0, img);
+//             p.end();
+//             pixmaps.append(QPixmap::fromImage(filledImg));
+//         }
+//         return pixmaps;
+//     });
+
+
+//     watcher->setFuture(future);
+// }
+
+
+
+// void PdfSlot::connectSlots(QObject* thisInstance) {
+//     QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this]() {
+//         nextResult();
+//     });
+//     QObject::connect(findPrev, &QPushButton::clicked, thisInstance, [this]() {
+//         prevResult();
+//     });
+//     QObject::connect(findClose, &QPushButton::clicked, thisInstance, [this]() {
+//         enableSearch(false);
+//     });
+
+//     QObject::connect(pageSelector, &QPdfPageSelector::currentPageChanged, thisInstance,
+//                      [this](int page) {
+//                          nav->jump(page, {}, nav->currentZoom());
+//     });
+
+
+//     QObject::connect(zoomSelector, &QComboBox::currentTextChanged, thisInstance,
+//                      [this](const QString &text) {
+//                          menuZoom(text);
+//     });
+
+
+//     QObject::connect(searchField, &QLineEdit::textEdited, thisInstance, [this](const QString &text) {
+//         searchModel->setSearchString(text);
+//         currentResultIndex = -1;
+//     });
+
+//     QObject::connect(bookmarkTree, &QTreeView::clicked, thisInstance, [this](const QModelIndex &index) {
+//         int page = index.data(int(QPdfBookmarkModel::Role::Page)).toInt();
+//         nav->jump(page, {}, nav->currentZoom());
+//     });
+
+//     QObject::connect(prevPage, &QPushButton::clicked, thisInstance, [this]() {
+//         nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
+//     });
+//     QObject::connect(nextPage, &QPushButton::clicked, thisInstance, [this]() {
+//         nav->jump(nav->currentPage() + 1, {}, nav->currentZoom());
+//     });
+//     QObject::connect(sidePanelButton, &QPushButton::clicked, thisInstance, [this] {
+//         enableSidePanel();
+//     });
+//     QObject::connect(indexTabButton, &QPushButton::clicked, thisInstance, [this] {
+//         showIndexTab();
+//     });
+//     QObject::connect(thumbnailTabButton, &QPushButton::clicked, thisInstance, [this] {
+//         showThumbnailTab();
+//     });
+// }
+
+
+// PdfSlot::~PdfSlot() {
+//     doc->close();
+// }
+
+//\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
+
+
 

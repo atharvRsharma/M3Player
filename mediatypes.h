@@ -179,94 +179,73 @@ struct ImageSlot : MediaSlot {
     QString type() const override { return "image"; }
 };
 
-struct PdfSlot : MediaSlot {
-    QPdfDocument        *doc;
-    QPdfView            *viewer;
-    QPdfPageSelector    *pageSelector;
-    QPdfSearchModel     *searchModel;
-    QLineEdit           *searchField;
-    QPdfBookmarkModel   *bookmarkModel;
-    QPdfPageNavigator   *nav;
-    QComboBox           *zoomSelector;
-    QWidget             *sidePanel;
-    QTreeView           *bookmarkTree;
-
-    QWidget             *findBar;
-    QPushButton         *findNext;
-    QPushButton         *findPrev;
-    QPushButton         *findClose;
-
-    QWidget             *navBar;
-    QPushButton         *prevPage;
-    QPushButton         *nextPage;
-    QPushButton         *sidePanelButton;
-
-    QPushButton         *thumbnailTabButton;
-    QGraphicsView       *thumbnailView;
-    QGraphicsScene      *thumbnailScene;
-    QPixmap             pixmap;
 
 
-    QPushButton         *indexTabButton;
+// struct PdfSlot : MediaSlot {
+//     QPdfDocument        *doc;
+//     QPdfView            *viewer;
+//     QPdfPageSelector    *pageSelector;
+//     QPdfSearchModel     *searchModel;
+//     QLineEdit           *searchField;
+//     QPdfBookmarkModel   *bookmarkModel;
+//     QPdfPageNavigator   *nav;
+//     QComboBox           *zoomSelector;
+//     QWidget             *sidePanel;
+//     QTreeView           *bookmarkTree;
+
+//     QWidget             *findBar;
+//     QPushButton         *findNext;
+//     QPushButton         *findPrev;
+//     QPushButton         *findClose;
+
+//     QWidget             *navBar;
+//     QPushButton         *prevPage;
+//     QPushButton         *nextPage;
+//     QPushButton         *sidePanelButton;
+
+//     QPushButton         *thumbnailTabButton;
+//     QGraphicsView       *thumbnailView;
+//     QGraphicsScene      *thumbnailScene;
+//     QPixmap             pixmap;
 
 
-    QString             pendingSearch;
-    QString             filePath;
-    qreal               factor;
-    int                 currentResultIndex      = -1;
-    bool                sidePanelOpen           = false;
-    bool                thumbnailsLoaded        = false;
+//     QPushButton         *indexTabButton;
 
 
-    void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
-    void forward() override;
-    void backward() override;
-    void zoom(qreal x) override;
-    void scroll(int x) override;
-    void connectSlots(QObject* thisInstance) override;
+//     QString             pendingSearch;
+//     QString             filePath;
+//     qreal               factor;
+//     int                 currentResultIndex      = -1;
+//     bool                sidePanelOpen           = false;
+//     bool                thumbnailsLoaded        = false;
 
-    QString type() const override { return "pdf"; }
-    ~PdfSlot();
-
-    void enableSearch(bool x);
-private:
-    void initComboBox();
-    void reset();
-    void nextResult();
-    void prevResult();
-    void menuZoom(const QString &text);
-    void jumpToResult(int i);
-    void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
-    void enableSidePanel();
-    void showIndexTab();
-    void showThumbnailTab();
-    void populateThumbnailTab();
-};
-
-
-
-// struct PdfSlotMinimal : MediaSlot {
-//     QPdfDocument    *doc;
-//     QPdfView        *viewer;
-//     QPdfPageSelector *pageSelector;
-//     QPdfSearchModel *searchModel;
-//     QLineEdit *searchField;
-
-
-//     qreal zoomFactor = 1.0f;
 
 //     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+//     void forward() override;
+//     void backward() override;
+//     void zoom(qreal x) override;
+//     void scroll(int x) override;
+//     void connectSlots(QObject* thisInstance) override;
 
 //     QString type() const override { return "pdf"; }
+//     ~PdfSlot();
 
-//     // void zoom(qreal x) override {
-//     //     qreal newZoom = zoomFactor * x;
-//     //     if (newZoom > 10.0) return;
-//     //     zoomFactor = newZoom;
-//     //     viewer->scale(x, x);
-//     // }
-
+//     void enableSearch(bool x);
+// private:
+//     void initComboBox();
+//     void reset();
+//     void nextResult();
+//     void prevResult();
+//     void menuZoom(const QString &text);
+//     void jumpToResult(int i);
+//     void searchResultsChanged(const QModelIndex &current, const QModelIndex &previous);
+//     void enableSidePanel();
+//     void showIndexTab();
+//     void showThumbnailTab();
+//     void populateThumbnailTab();
 // };
+
+
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance);
 
