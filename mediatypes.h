@@ -12,7 +12,7 @@
 #include <QPixmap>
 #include <QHash>
 #include <QMediaPlayer>
-
+#include <poppler/qt6/poppler-qt6.h>
 
 
 QT_BEGIN_NAMESPACE
@@ -161,7 +161,6 @@ struct AudioSlot : MediaSlot {
 
 private:
     QString getLyrics(const QString &filePath);
-
 };
 
 struct ImageSlot : MediaSlot {
@@ -177,6 +176,17 @@ struct ImageSlot : MediaSlot {
     void zoom(qreal x) override;
 
     QString type() const override { return "image"; }
+};
+
+struct PopPdfSlot : MediaSlot {
+    std::unique_ptr<Poppler::Document>      document;
+    QGraphicsView                          *viewer;
+    QGraphicsScene                         *scene;
+
+    void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+    void hello(const QString &path);
+    QString type() const override { return "poppdf"; }
+
 };
 
 

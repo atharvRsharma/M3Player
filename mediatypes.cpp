@@ -38,7 +38,7 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
 #include <QtPdf/QPdfSelection>
-#include <poppler/qt6/poppler-qt6.h>
+
 
 
 #include <taglib/fileref.h>
@@ -77,6 +77,12 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
     //     slot->load(path, parent, thisInstance);
     //     return slot;
     // }
+
+    if (pdf.contains(ext)) {
+        auto slot = std::make_unique<PopPdfSlot>();
+        slot->load(path, parent, thisInstance);
+        return slot;
+    }
 
     return nullptr;
 }
@@ -526,6 +532,120 @@ void ImageSlot::zoom(qreal x)  {
 }
 
 //\\IMAGEIMAGEIMAGE==================================================================================================================
+
+void PopPdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
+    wrapper = new QWidget(parent);
+    viewer = new QGraphicsView(wrapper);
+    scene = new QGraphicsScene(viewer);
+    border = new QWidget(wrapper);
+
+    auto *layout = new QVBoxLayout(wrapper);
+    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(viewer);
+
+    document = Poppler::Document::load(path);
+    if (!document || document->isLocked() || document->isEncrypted()) {
+        return;
+    }
+    // int pageCt = document->numPages();
+    // qreal yOffset = 0;
+    // for (int i{}; i < pageCt; ++i) {
+    //     std::unique_ptr<Poppler::Page> p = document->page(i);
+    //     QImage img = p->renderToImage(72, 72);
+    //     QPixmap pix = QPixmap::fromImage(img);
+    //     auto *item = new QGraphicsPixmapItem(pix);
+    //     item->setPos(0, yOffset);
+    //     item->setTransformationMode(Qt::SmoothTransformation);
+    //     scene->addItem(item);
+    //     yOffset += pix.height() + 10;
+    // }
+    // viewer->setScene(scene);
+
+
+
+
+
+    wrapper->setAcceptDrops(true);
+    wrapper->installEventFilter(thisInstance);
+    wrapper->setAttribute(Qt::WA_Hover);
+
+
+    viewer->setDragMode(QGraphicsView::ScrollHandDrag);
+
+    viewer->setAcceptDrops(true);
+    viewer->installEventFilter(thisInstance);
+    viewer->viewport()->installEventFilter(thisInstance);
+    viewer->viewport()->setAcceptDrops(true);
+
+    viewer->setScene(scene);
+    viewer->setAlignment(Qt::AlignTop);
+    viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+    hello(path);
+
+    QRectF contentRect = scene->itemsBoundingRect();
+    viewer->setSceneRect(contentRect.adjusted(-5000, -1000, 5000, 1000));
+
+
+    wrapper->setAcceptDrops(true);
+    wrapper->installEventFilter(thisInstance);
+    wrapper->setAttribute(Qt::WA_Hover);
+
+    border->setAttribute(Qt::WA_TransparentForMouseEvents);
+    border->setGeometry(wrapper->rect());
+    border->raise();
+}
+
+void PopPdfSlot::hello(const QString &path) {
+    int pageCt = document->numPages();
+
+    auto *watcher = new QFutureWatcher<QList<QPixmap>>();
+    QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [this, watcher]() {
+        auto pixmaps = watcher->result();
+        qreal yOffset = 0;
+        for (auto &pix : pixmaps) {
+            auto *item = new QGraphicsPixmapItem(pix);
+            item->setPos(0, yOffset);
+            item->setTransformationMode(Qt::SmoothTransformation);
+            scene->addItem(item);
+            yOffset += pix.height() + 10;
+        }
+        viewer->setScene(scene);
+        viewer->setAlignment(Qt::AlignTop);
+        QRectF contentRect = scene->itemsBoundingRect();
+        viewer->setSceneRect(contentRect);
+        watcher->deleteLater();
+    });
+
+    auto future = QtConcurrent::run([this, path, pageCt]() {
+        QPdfDocument doc;
+        doc.load(path);
+        QList<QPixmap> pixmaps;
+        for (int i = 0; i < pageCt; ++i) {
+            QSizeF pageSize = doc.pagePointSize(i);
+            qreal scale = 1;
+            QSize renderSize(
+                pageSize.width() * scale,
+                pageSize.height() * scale
+                );
+            auto img = doc.render(i, renderSize);
+            QImage filledImg(renderSize, QImage::Format_RGB32);
+            filledImg.fill(Qt::white);
+            QPainter p(&filledImg);
+            p.drawImage(0, 0, img);
+            p.end();
+            pixmaps.append(QPixmap::fromImage(filledImg));
+        }
+        return pixmaps;
+    });
+
+
+    watcher->setFuture(future);
+}
+
+// PopPdfSlot::~PopPdfSlot() {
+//     delete document;
+// }
+
 
 //PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
