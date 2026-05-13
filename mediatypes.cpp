@@ -690,8 +690,37 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     searchField->setMaximumWidth(400);
     findBar->raise();
     findBar->hide();
-    //processLinks();
     connectSlots(thisInstance);
+}
+
+QPointF PdfSlot::toPdfPoint(QPoint viewportPos, int page) {
+    qreal dpi   = viewer->screen()->logicalDotsPerInch();
+    qreal scale = nav->currentZoom() * dpi / 72.0;
+
+    qreal pageWidthPx  = doc->pagePointSize(page).width() * scale;
+    qreal viewportWidth = viewer->viewport()->width();
+    qreal xOffset = std::max((qreal)viewer->documentMargins().left(),
+                             (viewportWidth - pageWidthPx) / 2.0);
+
+    qreal yOffsetPx = viewer->documentMargins().top();
+    for (int p = 0; p < page; ++p)
+        yOffsetPx += doc->pagePointSize(p).height() * scale + viewer->pageSpacing();
+
+    QScrollBar *hb = viewer->horizontalScrollBar();
+    QScrollBar *vb = viewer->verticalScrollBar();
+
+    qreal pdfX = (viewportPos.x() + hb->value() - xOffset) / scale;
+    qreal pdfY = (viewportPos.y() + vb->value() - yOffsetPx) / scale;
+
+    return QPointF(pdfX, pdfY);
+}
+
+QString PdfSlot::getSelectedText() {
+    int page = nav->currentPage();
+    QPointF start = toPdfPoint(dragStart, page);
+    QPointF end   = toPdfPoint(dragEnd,   page);
+    QPdfSelection sel = doc->getSelection(page, start, end);
+    return sel.text();
 }
 
 void PdfSlot::searchResultsChanged(const QModelIndex &current, const QModelIndex &previous) {

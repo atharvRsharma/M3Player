@@ -218,6 +218,9 @@ struct PdfSlot : MediaSlot {
     int                 currentResultIndex      = -1;
     bool                sidePanelOpen           = false;
     bool                thumbnailsLoaded        = false;
+    QPoint dragStart;
+    QPoint dragEnd;
+    bool isDragging = false;
 
 
 
@@ -234,6 +237,7 @@ struct PdfSlot : MediaSlot {
 
     void enableSearch(bool x);
     void processLinks(QPoint clickPos = QPoint());
+    QString getSelectedText();
 private:
     void initComboBox();
     void reset();
@@ -246,6 +250,7 @@ private:
     void showIndexTab();
     void showThumbnailTab();
     void populateThumbnailTab();
+    QPointF toPdfPoint(QPoint viewportPos, int page);
 };
 
 

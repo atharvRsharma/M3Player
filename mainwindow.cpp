@@ -14,7 +14,6 @@
 #include <QGraphicsWidget>
 #include <QLabel>
 #include <QAction>
-#include <cmath>
 #include <QScrollArea>
 #include <QStyle>
 #include <QLineEdit>
@@ -24,6 +23,8 @@
 #include <QScrollBar>
 #include <QGraphicsView>
 #include <QPdfView>
+
+#include <cmath>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -197,7 +198,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
 
                     if (obj == pdf->viewer->viewport()) {
-                        pdf->processLinks(e->pos());
+                        pdf->dragStart = e->pos();
+                        pdf->isDragging = true;
+                        //pdf->processLinks(e->pos());
                         return true;
                     }
                 }
@@ -245,6 +248,28 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
 
             return true;
+        }
+    }
+
+    if (event->type() == QEvent::MouseButtonRelease) {
+        auto *e = static_cast<QMouseEvent*>(event);
+
+        if (fullscreenIndex != -1) {
+            if(mediaSlots[fullscreenIndex]->type() == "pdf") {
+                auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+                if (e->button() == Qt::LeftButton && pdf->isDragging) {
+                    pdf->dragEnd = e->pos();
+                    pdf->isDragging = false;
+
+                    if (pdf->dragStart != pdf->dragEnd) {
+                        QString text = pdf->getSelectedText();
+                        qDebug() << text;
+                        QApplication::clipboard()->setText(text);
+                    } else {
+                        pdf->processLinks(e->pos());
+                    }
+                }
+            }
         }
     }
 
