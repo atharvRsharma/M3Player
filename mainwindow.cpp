@@ -192,6 +192,18 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         if (e->button() == Qt::LeftButton) {
             int i = findSlotIndex();
             bool ctrl = e->modifiers() & Qt::ControlModifier;
+
+            if (fullscreenIndex != -1) {
+                if(mediaSlots[fullscreenIndex]->type() == "pdf") {
+                    auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+
+                    if (obj == pdf->viewer->viewport()) {
+                        pdf->processLinks(e->pos());
+                        return true;
+                    }
+                }
+            }
+
             if (i != -1) {
                 justClicked = true;
                 if (!ctrl) {

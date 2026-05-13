@@ -38,6 +38,8 @@
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
 #include <QtPdf/QPdfSelection>
+#include <QPdfLinkModel>
+#include <QDesktopServices>
 #include <poppler/qt6/poppler-qt6.h>
 
 
@@ -538,6 +540,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     searchModel       = new QPdfSearchModel(wrapper);
     searchField       = new QLineEdit(wrapper);
     zoomSelector      = new QComboBox(wrapper);
+    linkModel         = new QPdfLinkModel(wrapper);
     bookmarkModel     = new QPdfBookmarkModel(wrapper);
     sidePanel         = new QWidget(wrapper);
     indexTabButton    = new QPushButton("idx", sidePanel);
@@ -559,15 +562,9 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     thumbnailScene      = new QGraphicsScene(thumbnailView);
 
 
-    auto doc1 = Poppler::Document::load(path);
 
-    if (!doc) {
-        qDebug() << "failed to load pdf";
-        return;
-    }
 
-    qDebug() << "pdf loaded";
-    qDebug() << "pages:" << doc1->numPages();
+    linkModel->setDocument(doc);
 
     if (auto *spin = pageSelector->findChild<QSpinBox*>())
         spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
@@ -680,7 +677,6 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     bookmarkModel->setDocument(doc);
     pageSelector->setDocument(doc);
     searchModel->setDocument(doc);
-    // populateThumbnailTab();
 
 
     nav = viewer->pageNavigator();
@@ -693,6 +689,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     searchField->setMaximumWidth(400);
     findBar->raise();
     findBar->hide();
+    //processLinks();
     connectSlots(thisInstance);
 }
 
@@ -950,10 +947,115 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
 }
 
 
+// void PdfSlot::processLinks(QPoint clickPos) {
+//     int page = nav->currentPage();
+//     linkModel->setPage(page);
+
+//     qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
+//     qreal scale = viewer->zoomFactor() * dpi / 72.0;
+
+//     qDebug() << "clickPos:" << clickPos;
+//     qDebug() << "scale:" << scale;
+
+
+//     for (int i = 0; i < linkModel->rowCount(QModelIndex()); ++i) {
+//         QModelIndex idx = linkModel->index(i, 0);
+//         QRectF linkRect = idx.data(int(QPdfLinkModel::Role::Rectangle)).toRectF();
+//         QRectF pixelRect(linkRect.x() * scale, linkRect.y() * scale,
+//                          linkRect.width() * scale, linkRect.height() * scale);
+
+
+//         if (pixelRect.contains(clickPos)) {
+//             QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
+//             qDebug() << "link" << i << "linkRect:" << linkRect << "pixelRect:" << pixelRect << " " << url;
+//             if (url.isValid()) {
+//                 QDesktopServices::openUrl(url);
+//             } else {
+//                 int page = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
+//                 QPointF loc = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
+//                 qreal zoom = idx.data(int(QPdfLinkModel::Role::Zoom)).toReal();
+//                 nav->jump(page, loc, zoom != 0 ? zoom : nav->currentZoom());
+//             }
+//         }
+//     }
+// }
+
+void PdfSlot::processLinks(QPoint clickPos) {
+    int page = nav->currentPage();
+    linkModel->setPage(page);
+
+    qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
+    static qreal scale = nav->currentZoom() * dpi / 72.0;
+
+
+    qreal yOffsetPx = viewer->documentMargins().top();
+    for (int p = 0; p < page; ++p)
+        yOffsetPx += doc->pagePointSize(p).height() * scale + viewer->pageSpacing();
+
+    qreal xMargin = viewer->documentMargins().left();
+
+    for (int i = 0; i < linkModel->rowCount(QModelIndex()); ++i) {
+        QModelIndex idx = linkModel->index(i, 0);
+        QRectF linkRect = idx.data(int(QPdfLinkModel::Role::Rectangle)).toRectF();
+
+
+        QScrollBar *hb = viewer->horizontalScrollBar();
+        QScrollBar *vb = viewer->verticalScrollBar();
+        QRectF pixelRect(
+            linkRect.x() * scale + xMargin - hb->value() * 1.3,
+            linkRect.y() * scale + yOffsetPx - vb->value(),
+            linkRect.width() * scale * 1.1,
+            linkRect.height() * scale
+            );
+
+        if (pixelRect.contains(clickPos)) {
+            QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
+            if (url.isValid()) {
+                QDesktopServices::openUrl(url);
+            } else {
+                int targetPage = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
+                QPointF loc = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
+                qreal zoom = idx.data(int(QPdfLinkModel::Role::Zoom)).toReal();
+                nav->jump(targetPage, loc, zoom != 0 ? zoom : nav->currentZoom());
+            }
+            return;
+        }
+    }
+}
+
 PdfSlot::~PdfSlot() {
     doc->close();
 }
 
+
+
+// if (obj == pdf->viewer->viewport() && e->button() == Qt::LeftButton) {
+//     // check links
+//     QPoint clickPos = e->pos();
+//     qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
+//     qreal scale = pdf->viewer->zoomFactor() * dpi / 72.0;
+
+//     for (int i = 0; i < pdf->linkModel->rowCount(); ++i) {
+//         QModelIndex idx = pdf->linkModel->index(i, 0);
+//         QRectF linkRect = idx.data(int(QPdfLinkModel::Role::Rectangle)).toRectF();
+
+//         // convert linkRect from PDF points to viewport pixels
+//         QRectF pixelRect(linkRect.x() * scale, linkRect.y() * scale,
+//                          linkRect.width() * scale, linkRect.height() * scale);
+
+//         if (pixelRect.contains(clickPos)) {
+//             QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
+//             if (url.isValid()) {
+//                 QDesktopServices::openUrl(url);
+//             } else {
+//                 int page = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
+//                 QPointF loc = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
+//                 pdf->nav->jump(page, loc);
+//             }
+//             return true;
+//         }
+//     }
+// }
 //\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 

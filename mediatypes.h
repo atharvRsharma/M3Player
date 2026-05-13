@@ -3,6 +3,7 @@
 
 
 
+#include "qpdflink.h"
 #include <memory>
 
 #include <QString>
@@ -42,6 +43,7 @@ class QTimer;
 class QPushButton;
 class QTreeView;
 class QPdfPageRenderer;
+class QPdfLinkModel;
 QT_END_NAMESPACE
 
 
@@ -190,6 +192,7 @@ struct PdfSlot : MediaSlot {
     QComboBox           *zoomSelector;
     QWidget             *sidePanel;
     QTreeView           *bookmarkTree;
+    QPdfLinkModel       *linkModel;
 
     QWidget             *findBar;
     QPushButton         *findNext;
@@ -217,6 +220,8 @@ struct PdfSlot : MediaSlot {
     bool                thumbnailsLoaded        = false;
 
 
+
+
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void forward() override;
     void backward() override;
@@ -228,6 +233,7 @@ struct PdfSlot : MediaSlot {
     ~PdfSlot();
 
     void enableSearch(bool x);
+    void processLinks(QPoint clickPos = QPoint());
 private:
     void initComboBox();
     void reset();
