@@ -1,7 +1,4 @@
 #include "mainwindow.h"
-#include "qpdfdocument.h"
-#include "qpdfpagenavigator.h"
-#include "qscrollbar.h"
 #include "ui_mainwindow.h"
 #include "mediatypes.h"
 
@@ -23,6 +20,8 @@
 #include <QLineEdit>
 #include <QComboBox>
 #include <QTreeView>
+#include <QPdfPageNavigator>
+#include <QScrollBar>
 #include <QGraphicsView>
 #include <QPdfView>
 

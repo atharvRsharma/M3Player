@@ -43,6 +43,7 @@
 #include <poppler/qt6/poppler-qt6.h>
 
 
+
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
 #include <taglib/id3v2tag.h>
@@ -459,7 +460,7 @@ void AudioSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
     QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
 
-    QObject::connect(player, &QMediaPlayer::metaDataChanged, [this]{
+    QObject::connect(player, &QMediaPlayer::metaDataChanged, thisInstance, [this]{
         if(QVariant thumbnail = player->metaData().value(QMediaMetaData::ThumbnailImage); !thumbnail.isNull()) {
             coverImage = thumbnail.value<QImage>();
             cover->setPixmap(QPixmap::fromImage(coverImage).scaled(cover->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -814,6 +815,7 @@ void PdfSlot::enableSidePanel() {
     else sidePanel->setVisible(false);
 }
 
+
 void PdfSlot::initComboBox() {
     zoomSelector->setEditable(true);
     zoomSelector->addItem(QLatin1String("Fit Width"));
@@ -831,6 +833,7 @@ void PdfSlot::initComboBox() {
     zoomSelector->addItem(QLatin1String("400%"));
 }
 
+
 void PdfSlot::showIndexTab() {
     if(!bookmarkTree->isVisible()) {
         if(thumbnailView->isVisible()) thumbnailView->setVisible(false);
@@ -838,6 +841,7 @@ void PdfSlot::showIndexTab() {
     }
     else  bookmarkTree->hide();
 }
+
 
 void PdfSlot::showThumbnailTab() {
     if (!thumbnailView->isVisible()) {
@@ -855,7 +859,7 @@ void PdfSlot::showThumbnailTab() {
 void PdfSlot::populateThumbnailTab() {
     int pageCt = doc->pageCount();
     auto *watcher = new QFutureWatcher<QList<QPixmap>>();
-    QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [this, watcher]() {
+    QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [&, watcher]() {
         auto pixmaps = watcher->result();
         qreal yOffset = 0;
         for (auto &pix : pixmaps) {
@@ -877,7 +881,6 @@ void PdfSlot::populateThumbnailTab() {
         thumbDoc.load(filePath);
         QList<QPixmap> pixmaps;
         for (int i = 0; i < pageCt; ++i) {
-            //QSizeF pageSize = thumbDoc.pagePointSize(i) / 1.5;
             QSize renderSize = QSize(120, 200);
             auto img = thumbDoc.render(i, renderSize);
             QImage filledImg(renderSize, QImage::Format_RGB32);
@@ -893,7 +896,6 @@ void PdfSlot::populateThumbnailTab() {
 
     watcher->setFuture(future);
 }
-
 
 
 void PdfSlot::connectSlots(QObject* thisInstance) {
@@ -947,64 +949,33 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
 }
 
 
-// void PdfSlot::processLinks(QPoint clickPos) {
-//     int page = nav->currentPage();
-//     linkModel->setPage(page);
-
-//     qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
-//     qreal scale = viewer->zoomFactor() * dpi / 72.0;
-
-//     qDebug() << "clickPos:" << clickPos;
-//     qDebug() << "scale:" << scale;
-
-
-//     for (int i = 0; i < linkModel->rowCount(QModelIndex()); ++i) {
-//         QModelIndex idx = linkModel->index(i, 0);
-//         QRectF linkRect = idx.data(int(QPdfLinkModel::Role::Rectangle)).toRectF();
-//         QRectF pixelRect(linkRect.x() * scale, linkRect.y() * scale,
-//                          linkRect.width() * scale, linkRect.height() * scale);
-
-
-//         if (pixelRect.contains(clickPos)) {
-//             QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
-//             qDebug() << "link" << i << "linkRect:" << linkRect << "pixelRect:" << pixelRect << " " << url;
-//             if (url.isValid()) {
-//                 QDesktopServices::openUrl(url);
-//             } else {
-//                 int page = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
-//                 QPointF loc = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
-//                 qreal zoom = idx.data(int(QPdfLinkModel::Role::Zoom)).toReal();
-//                 nav->jump(page, loc, zoom != 0 ? zoom : nav->currentZoom());
-//             }
-//         }
-//     }
-// }
-
 void PdfSlot::processLinks(QPoint clickPos) {
     int page = nav->currentPage();
     linkModel->setPage(page);
 
-    qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
-    static qreal scale = nav->currentZoom() * dpi / 72.0;
-
+    qreal dpi   = viewer->screen()->logicalDotsPerInch();
+    qreal scale = nav->currentZoom() * dpi / 72.0;
 
     qreal yOffsetPx = viewer->documentMargins().top();
     for (int p = 0; p < page; ++p)
         yOffsetPx += doc->pagePointSize(p).height() * scale + viewer->pageSpacing();
 
-    qreal xMargin = viewer->documentMargins().left();
+
+    QScrollBar *hb = viewer->horizontalScrollBar();
+    QScrollBar *vb = viewer->verticalScrollBar();
+
+    qreal pageWidthPx = doc->pagePointSize(page).width() * scale;
+    qreal viewportWidth = viewer->viewport()->width();
+    qreal xOffset = std::max((qreal)viewer->documentMargins().left(), (viewportWidth - pageWidthPx) / 2.0);
 
     for (int i = 0; i < linkModel->rowCount(QModelIndex()); ++i) {
-        QModelIndex idx = linkModel->index(i, 0);
-        QRectF linkRect = idx.data(int(QPdfLinkModel::Role::Rectangle)).toRectF();
+        QModelIndex idx    = linkModel->index(i, 0);
+        QRectF linkRect    = idx.data(int(QPdfLinkModel::Role::Rectangle)).toRectF();
 
-
-        QScrollBar *hb = viewer->horizontalScrollBar();
-        QScrollBar *vb = viewer->verticalScrollBar();
         QRectF pixelRect(
-            linkRect.x() * scale + xMargin - hb->value() * 1.3,
+            linkRect.x() * scale + xOffset - hb->value(),
             linkRect.y() * scale + yOffsetPx - vb->value(),
-            linkRect.width() * scale * 1.1,
+            linkRect.width() * scale,
             linkRect.height() * scale
             );
 
@@ -1014,8 +985,8 @@ void PdfSlot::processLinks(QPoint clickPos) {
                 QDesktopServices::openUrl(url);
             } else {
                 int targetPage = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
-                QPointF loc = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
-                qreal zoom = idx.data(int(QPdfLinkModel::Role::Zoom)).toReal();
+                QPointF loc    = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
+                qreal zoom     = idx.data(int(QPdfLinkModel::Role::Zoom)).toReal();
                 nav->jump(targetPage, loc, zoom != 0 ? zoom : nav->currentZoom());
             }
             return;
@@ -1023,39 +994,11 @@ void PdfSlot::processLinks(QPoint clickPos) {
     }
 }
 
+
 PdfSlot::~PdfSlot() {
     doc->close();
 }
 
-
-
-// if (obj == pdf->viewer->viewport() && e->button() == Qt::LeftButton) {
-//     // check links
-//     QPoint clickPos = e->pos();
-//     qreal dpi = QGuiApplication::primaryScreen()->logicalDotsPerInch();
-//     qreal scale = pdf->viewer->zoomFactor() * dpi / 72.0;
-
-//     for (int i = 0; i < pdf->linkModel->rowCount(); ++i) {
-//         QModelIndex idx = pdf->linkModel->index(i, 0);
-//         QRectF linkRect = idx.data(int(QPdfLinkModel::Role::Rectangle)).toRectF();
-
-//         // convert linkRect from PDF points to viewport pixels
-//         QRectF pixelRect(linkRect.x() * scale, linkRect.y() * scale,
-//                          linkRect.width() * scale, linkRect.height() * scale);
-
-//         if (pixelRect.contains(clickPos)) {
-//             QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
-//             if (url.isValid()) {
-//                 QDesktopServices::openUrl(url);
-//             } else {
-//                 int page = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
-//                 QPointF loc = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
-//                 pdf->nav->jump(page, loc);
-//             }
-//             return true;
-//         }
-//     }
-// }
 //\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 
