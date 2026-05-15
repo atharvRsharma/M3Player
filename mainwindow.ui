@@ -52,6 +52,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="actionOpen"/>
+   <addaction name="actionLink"/>
   </widget>
   <action name="actionOpen">
    <property name="icon">
@@ -114,6 +115,21 @@
    </property>
    <property name="toolTip">
     <string>Next</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionLink">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/images/icons/link.png</normaloff>:/images/icons/link.png</iconset>
+   </property>
+   <property name="text">
+    <string>Link</string>
+   </property>
+   <property name="toolTip">
+    <string>links</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

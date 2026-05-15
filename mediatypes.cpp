@@ -40,7 +40,7 @@
 #include <QtPdf/QPdfSelection>
 #include <QPdfLinkModel>
 #include <QDesktopServices>
-#include <poppler/qt6/poppler-qt6.h>
+//#include <poppler/qt6/poppler-qt6.h>
 
 
 
@@ -52,12 +52,12 @@
 
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
-    static const QStringList vid = {"mp4", "mkv", "avi", "mov"};
+    static const QStringList vid = {"mp4", "mkv", "avi", "mov", "m3u8", "webm"};
     static const QStringList aud = {"mp3", "m4a", "flac", "ogg", "wav"};
     static const QStringList img = {"png","jpg","jpeg","webp","gif"};
     static const QStringList pdf = {"pdf"};
 
-    QString ext = QFileInfo(path).suffix().toLower();
+    QString ext = QFileInfo(QUrl(path).path()).suffix().toLower();
 
     if (vid.contains(ext)) {
         auto slot = std::make_unique<VideoSlot>();
@@ -74,7 +74,6 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
         slot->load(path, parent, thisInstance);
         return slot;
     }
-
     if (pdf.contains(ext)) {
         auto slot = std::make_unique<PdfSlot>();
         slot->load(path, parent, thisInstance);
@@ -83,7 +82,6 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
 
     return nullptr;
 }
-
 
 //=============================================================================================================
 //=============================================================================================================
@@ -143,7 +141,8 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     // });
     connectSlots(thisInstance);
 
-    player->setSource(QUrl::fromLocalFile(path));
+    QUrl url = path.startsWith("http") ? QUrl(path) : QUrl::fromLocalFile(path);
+    player->setSource(url);
 
     player->pause();
 }
@@ -357,7 +356,8 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
         lyrics->setVisible(false);
     }
 
-    player->setSource(QUrl::fromLocalFile(path));
+    QUrl url = path.startsWith("http") ? QUrl(path) : QUrl::fromLocalFile(path);
+    player->setSource(url);
 
     player->pause();
 }

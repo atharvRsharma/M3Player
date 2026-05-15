@@ -7,5 +7,6 @@
         <file>icons/next.png</file>
         <file>icons/20210928131147.PNG</file>
         <file>icons/menu.png</file>
+        <file>icons/link.png</file>
     </qresource>
 </RCC>

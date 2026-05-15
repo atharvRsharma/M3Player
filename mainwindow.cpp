@@ -24,6 +24,8 @@
 #include <QScrollBar>
 #include <QGraphicsView>
 #include <QPdfView>
+#include <QInputDialog>
+#include <QProcess>
 
 #include <cmath>
 
@@ -56,6 +58,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionPlay,     &QAction::triggered, this, &MainWindow::play);
     connect(ui->actionPause,    &QAction::triggered, this, &MainWindow::pause);
     connect(ui->actionOpen,     &QAction::triggered, this, &MainWindow::openFiles);
+    connect(ui->actionLink,     &QAction::triggered, this, &MainWindow::openLinks);
     connect(actionSettings,     &QAction::triggered, this, &MainWindow::toggleSettings);
     connect(volSlider,          &QSlider::valueChanged, this, &MainWindow::changeVolume);
 
@@ -87,8 +90,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::openFiles()
-{
+void MainWindow::openFiles() {
     QStringList files = QFileDialog::getOpenFileNames(
         this,
         tr("Select Media"),
@@ -96,6 +98,30 @@ void MainWindow::openFiles()
         );
 
     for (const QString &f : files) addMedia(f);
+}
+
+
+
+void MainWindow::openLinks() {
+    QString url = QInputDialog::getText(this, "enter url", "url: ");
+    if (url.isEmpty()) return;
+
+    QProcess *proc = new QProcess();
+    proc->start("yt-dlp.exe", {"--remote-components", "ejs:github",
+                               "--js-runtimes", "node",
+                               "--cookies-from-browser", "firefox",
+                               "-f", "b",
+                               "-g", url});
+
+    connect(proc, &QProcess::finished, this, [=]() {
+        QString streamUrl = proc->readAllStandardOutput().trimmed();
+        QString err = proc->readAllStandardError().trimmed();
+        qDebug() << "stream url:" << streamUrl;
+        qDebug() << "yt-dlp err:" << err;
+        if (!streamUrl.isEmpty())
+            addMedia(streamUrl);
+        proc->deleteLater();
+    });
 }
 
 void MainWindow::pause()
@@ -236,18 +262,20 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             }
         }
 
-        else if (e->button() == Qt::RightButton){
+        else if (e->button() == Qt::RightButton) {
             int i = findSlotIndex();
             QMenu menu;
             QAction *closeAct = menu.addAction("Close");
             QAction *selectedAct = menu.exec(QCursor::pos());
-            if (hoveredIndex != -1 && hoveredIndex == i) removeMedia(hoveredIndex);
-            if (selectedAct == closeAct && !selectedIndices.empty()) {
-                for(size_t j = selectedIndices.size() - 1; j >= 0; --j) {
-                    if (selectedIndices[j] == i) removeMedia(selectedIndices[j]);
+
+            if (selectedAct == closeAct) {
+                if (i != -1)
+                    removeMedia(i);
+                else if (!selectedIndices.empty()) {
+                    for (int j = (int)selectedIndices.size() - 1; j >= 0; --j)
+                        removeMedia(selectedIndices[j]);
                 }
             }
-
             return true;
         }
     }

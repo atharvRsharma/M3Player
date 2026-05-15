@@ -35,6 +35,7 @@ private slots:
 private:
     void addMedia(const QString &path);
     void openFiles();
+    void openLinks();
     void rebuildGrid();
     void highlight();
     void removeMedia(int index);
