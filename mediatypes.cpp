@@ -719,9 +719,23 @@ QString PdfSlot::getSelectedText() {
     int page = nav->currentPage();
     QPointF start = toPdfPoint(dragStart, page);
     QPointF end   = toPdfPoint(dragEnd,   page);
+    qDebug() << start;
+    qDebug() << end;
     QPdfSelection sel = doc->getSelection(page, start, end);
-    return sel.text();
+    if(sel.isValid())
+        return sel.text();
+    else {
+        start += QPointF(100, 0);
+        sel = doc->getSelection(page, start, end);
+        return sel.text();
+    }
 }
+
+bool PdfSlot::hasTextAt(QPointF pt, int page) {
+    QPdfSelection sel = doc->getSelection(page, pt, pt + QPointF(1.0, 0));
+    return sel.isValid();
+}
+
 
 void PdfSlot::searchResultsChanged(const QModelIndex &current, const QModelIndex &previous) {
     Q_UNUSED(previous);

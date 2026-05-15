@@ -238,6 +238,7 @@ struct PdfSlot : MediaSlot {
     void enableSearch(bool x);
     void processLinks(QPoint clickPos = QPoint());
     QString getSelectedText();
+    bool hasTextAt(QPointF pt, int page);
 private:
     void initComboBox();
     void reset();

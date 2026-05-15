@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "qtimer.h"
 #include "ui_mainwindow.h"
 #include "mediatypes.h"
 
@@ -521,8 +522,7 @@ void MainWindow::enterFullscreen(int index)
     }
 }
 
-void MainWindow::exitFullscreen()
-{
+void MainWindow::exitFullscreen() {
     if (fullscreenIndex != -1) {
         if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
             auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
@@ -556,9 +556,7 @@ void MainWindow::addMedia(const QString &path) {
     rebuildGrid();
 }
 
-void MainWindow::rebuildGrid()
-{
-
+void MainWindow::rebuildGrid() {
     for (auto &s : mediaSlots) grid->removeWidget(s->wrapper);
 
     int n = static_cast<int>(mediaSlots.size());
@@ -570,7 +568,6 @@ void MainWindow::rebuildGrid()
     int cols = static_cast<int>(std::ceil(std::sqrt(n)));
     int rows = static_cast<int>(std::ceil(static_cast<double>(n) / cols));
 
-
     for (int i = 0; i < n; ++i) {
         int r = i / cols;
         int c = i % cols;
@@ -578,14 +575,17 @@ void MainWindow::rebuildGrid()
         mediaSlots[i]->wrapper->show();
     }
     for (int r = 0; r < rows; ++r) grid->setRowStretch(r, 1);
-
     for (int c = 0; c < cols; ++c) grid->setColumnStretch(c, 1);
+
+    QTimer::singleShot(0, container, [this]() {
+        for (auto &s : mediaSlots)
+            s->border->setGeometry(s->wrapper->rect());
+        highlight();
+    });
 }
 
 
-void MainWindow::highlight()
-{
-
+void MainWindow::highlight() {
     for (int i = 0; i < (int)mediaSlots.size(); ++i) {
         bool selected = std::find(selectedIndices.begin(), selectedIndices.end(), i) != selectedIndices.end();
         bool hovered  = (i == hoveredIndex);
@@ -596,25 +596,36 @@ void MainWindow::highlight()
             mediaSlots[i]->border->setStyleSheet("border: 3px solid #555555;");
         else
             mediaSlots[i]->border->setStyleSheet("border: none;");
-
-        //mediaSlots[i]->showSettings(container);
     }
 }
 
 
 
-void MainWindow::removeMedia(int index){
+void MainWindow::removeMedia(int index) {
     if (index < 0 || index >= static_cast<int>(mediaSlots.size())) return;
+    if (fullscreenIndex != -1) exitFullscreen();
+
     auto* w = mediaSlots[index]->wrapper;
     grid->removeWidget(w);
     w->hide();
     mediaSlots.erase(mediaSlots.begin() + index);
     w->deleteLater();
-    selectedIndices.clear();
-    if(volSlider->isVisible()) volSlider->setVisible(false);
-    hoveredIndex = -1;
+
+    selectedIndices.erase(
+        std::remove_if(selectedIndices.begin(), selectedIndices.end(),
+                       [index](int i) { return i == index; }),
+        selectedIndices.end()
+        );
+    for (int &i : selectedIndices)
+        if (i > index) --i;
+
+    if (hoveredIndex == index) hoveredIndex = -1;
+    else if (hoveredIndex > index) --hoveredIndex;
+
+    if (fullscreenIndex > index) --fullscreenIndex;
+
+    if (volSlider->isVisible()) volSlider->setVisible(false);
     container->update();
-    container->repaint();
     rebuildGrid();
 }
 //TODO removal of media thru context menus is borderline unusable, need to figure out right->left
