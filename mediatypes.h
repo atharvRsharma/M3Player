@@ -84,9 +84,17 @@ struct VideoSlot : MediaSlot {
     QComboBox    *audioTracks;
     QComboBox    *videoTracks;
     QComboBox    *subtitleTracks;
+    QLabel       *externalSubtitleLabel;
+    QTimer       *subTimer;
+    QWidget      *subtitleOverlay;
 
-    const qint64 seekStep = 5000;
-    float currentVolume = 1.0f;
+
+    QList<std::tuple<qint64, qint64, QString>> subtitles;
+    QString externalSubPath;
+
+    const qint64 seekStep   = 5000;
+    float currentVolume     = 1.0f;
+    bool subtitlesEnabled   = true;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
     void play() override;
@@ -104,6 +112,11 @@ struct VideoSlot : MediaSlot {
     void showSettings(QWidget* settingsOverlay) override;
     void connectSlots(QObject* thisInstance) override;
 
+    // specific fns
+    void loadExternalSubtitles(const QString &srtPath);
+    void updateExternalSubtitle(qint64 pos);
+    void repositionExternalSubtitleOverlay();
+
     QMediaPlayer::PlaybackState getPlayerState() const override {
         return player->playbackState();
     }
@@ -112,6 +125,7 @@ struct VideoSlot : MediaSlot {
     ~VideoSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); player->setVideoOutput(nullptr); }
 
 private:
+    // pvt local fns
     void selectSubtitleStream(int stream);
     void selectVideoStream(int stream);
     void selectAudioStream(int stream);
@@ -162,6 +176,7 @@ struct AudioSlot : MediaSlot {
     ~AudioSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); }
 
 private:
+    // pvt local fns
     QString getLyrics(const QString &filePath);
 
 };
@@ -235,11 +250,13 @@ struct PdfSlot : MediaSlot {
     QString type() const override { return "pdf"; }
     ~PdfSlot();
 
+    // special fns
     void enableSearch(bool x);
     void processLinks(QPoint clickPos = QPoint());
     QString getSelectedText();
     bool hasTextAt(QPointF pt, int page);
 private:
+    // pvt local fns
     void initComboBox();
     void reset();
     void nextResult();

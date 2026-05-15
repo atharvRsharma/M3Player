@@ -26,6 +26,7 @@
 #include <QPdfView>
 #include <QInputDialog>
 #include <QProcess>
+#include <QVideoWidget>
 
 #include <cmath>
 
@@ -181,8 +182,16 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         auto *e = static_cast<QDropEvent*>(event);
         for (const QUrl &url : e->mimeData()->urls()) {
             QString file = url.toLocalFile();
-            if (!file.isEmpty())
-                addMedia(file);
+            if (file.endsWith(".srt", Qt::CaseInsensitive)) {
+                int target = hoveredIndex != -1 ? hoveredIndex :
+                                 !selectedIndices.empty() ? selectedIndices[0] : -1;
+                if (target != -1 && mediaSlots[target]->type() == "video") {
+                    auto *vid = static_cast<VideoSlot*>(mediaSlots[target].get());
+                    vid->loadExternalSubtitles(file);
+                }
+            } else {
+                if (!file.isEmpty()) addMedia(file);
+            }
         }
         return true;
     }
@@ -326,7 +335,19 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     return true;
                 }
 
-
+                if (mediaSlots[i]->type() == "video") {
+                    auto *vid = static_cast<VideoSlot*>(mediaSlots[i].get());
+                    if (obj == vid->wrapper) {
+                        int sliderH = vid->slider->isVisible() ? vid->slider->height() : 0;
+                        vid->externalSubtitleLabel->setGeometry(
+                            3,
+                            vid->wrapper->height() - sliderH - 80 - 3,
+                            vid->wrapper->width() - 6,
+                            60
+                            );
+                        vid->externalSubtitleLabel->raise();
+                    }
+                }
 
                 if (mediaSlots[i]->wrapper == obj) {
                     mediaSlots[i]->border->setGeometry(mediaSlots[i]->wrapper->rect());
@@ -546,6 +567,10 @@ void MainWindow::enterFullscreen(int index)
                 mediaSlots[i]->pause();
             }
             mediaSlots[i]->wrapper->hide();
+            if (mediaSlots[i]->type() == "video") {
+                auto *vid = static_cast<VideoSlot*>(mediaSlots[i].get());
+                vid->subtitleOverlay->hide();
+            }
         }
     }
 }
@@ -656,5 +681,3 @@ void MainWindow::removeMedia(int index) {
     container->update();
     rebuildGrid();
 }
-//TODO removal of media thru context menus is borderline unusable, need to figure out right->left
-//sequence and get exact position of context menu and its options

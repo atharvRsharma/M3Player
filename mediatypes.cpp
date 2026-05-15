@@ -99,14 +99,29 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     audioTracks = new QComboBox(wrapper);
     videoTracks = new QComboBox(wrapper);
 
+    QWidget *mainWin = parent;
+    while (mainWin->parentWidget()) mainWin = mainWin->parentWidget();
 
+    subtitleOverlay = new QWidget(mainWin, Qt::Tool | Qt::FramelessWindowHint);
+
+    subtitleOverlay->setAttribute(Qt::WA_TranslucentBackground);
+    subtitleOverlay->setAttribute(Qt::WA_ShowWithoutActivating);
+
+    externalSubtitleLabel = new QLabel(subtitleOverlay);
+    externalSubtitleLabel->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
+    externalSubtitleLabel->setWordWrap(true);
+    externalSubtitleLabel->setStyleSheet("color: white; background: rgba(0,0,0,120); padding: 4px; font-size: 16px;");
+
+    auto *externalSubtitleOverlay = new QVBoxLayout(subtitleOverlay);
+    externalSubtitleOverlay->setContentsMargins(0,0,0,0);
+    externalSubtitleOverlay->addWidget(externalSubtitleLabel);
+
+    subtitleOverlay->hide();
 
     auto *layout = new QVBoxLayout(wrapper);
     layout->setContentsMargins(3,3,3,3);
     layout->addWidget(video);
     layout->addWidget(slider);
-
-
 
     slider->hide();
 
@@ -132,13 +147,9 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 
     border->setAttribute(Qt::WA_TransparentForMouseEvents);
     border->setGeometry(wrapper->rect());
+    externalSubtitleLabel->raise();
     border->raise();
 
-
-
-    // QObject::connect(player, &QMediaPlayer::seekableChanged, thisInstance, [this] (int sec) {
-    //     seek(sec);
-    // });
     connectSlots(thisInstance);
 
     QUrl url = path.startsWith("http") ? QUrl(path) : QUrl::fromLocalFile(path);
@@ -199,10 +210,15 @@ void VideoSlot::adjustVolume(float delta) {
     audio->setVolume(currentVolume);
 }
 
-void VideoSlot::selectSubtitleStream(int stream)
-{
-    stream = subtitleTracks->currentData().toInt();
-    player->setActiveSubtitleTrack(stream);
+void VideoSlot::selectSubtitleStream(int index) {
+    if (index == 0) {
+        player->setActiveSubtitleTrack(-1);
+        subtitlesEnabled = false;
+        externalSubtitleLabel->hide();
+        return;
+    }
+    subtitlesEnabled = true;
+    player->setActiveSubtitleTrack(index - 1);
 }
 
 void VideoSlot::selectVideoStream(int stream)
@@ -222,6 +238,8 @@ void VideoSlot::updateTracks() {
     audioTracks->clear();
     videoTracks->clear();
 
+    subtitleTracks->addItem(QLatin1String("turn subtitles off"));
+
     const auto subTracks = player->subtitleTracks();
     const auto audTracks = player->audioTracks();
     const auto vidTracks = player->videoTracks();
@@ -237,7 +255,17 @@ void VideoSlot::updateTracks() {
     for (int i = 0; i < subTracks.size(); ++i)
         subtitleTracks->addItem(trackName(subTracks.at(i), i), i);
     subtitleTracks->setCurrentIndex(player->activeSubtitleTrack() + 1);
+
+
+    if (subtitleTracks->count() == 1)
+        subtitleTracks->addItem(QLatin1String("no tracks available"));
+    if (audioTracks->count() == 0)
+        audioTracks->addItem(QLatin1String("no tracks available"));
+    if (videoTracks->count() == 0)
+        videoTracks->addItem(QLatin1String("no tracks available"));
 }
+
+
 
 QString VideoSlot::trackName(const QMediaMetaData &metaData, int index) {
     QString name;
@@ -264,6 +292,7 @@ void VideoSlot::seek(int sec) {
 }
 
 void VideoSlot::showSettings(QWidget* settingsOverlay) {
+    if (settingsOverlay->layout()) return;
     auto *layout = new QVBoxLayout(settingsOverlay);
     layout->addWidget(subtitleTracks);
     layout->addWidget(videoTracks);
@@ -287,8 +316,81 @@ void VideoSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(audioTracks, &QComboBox::currentIndexChanged, thisInstance, [this](int stream)
                      { selectAudioStream(stream); });
 
-
+    QObject::connect(player, &QMediaPlayer::positionChanged, thisInstance, [this](qint64 pos) {
+        if (externalSubtitleLabel) updateExternalSubtitle(pos);
+    });
 }
+
+
+
+// external sub related fns
+
+void VideoSlot::repositionExternalSubtitleOverlay() {
+    if (!subtitlesEnabled || !subtitleOverlay) return;
+    QPoint globalPos = video->mapToGlobal(QPoint(0, video->height() - 80));
+    subtitleOverlay->setGeometry(globalPos.x(), globalPos.y(), video->width(), 60);
+}
+
+void VideoSlot::loadExternalSubtitles(const QString &srtPath) {
+    subtitlesEnabled = true;
+    if (player->activeSubtitleTrack() != -1) player->setActiveSubtitleTrack(-1);
+    subtitles.clear();
+    QFile f(srtPath);
+    externalSubPath = srtPath;
+    if (!f.open(QIODevice::ReadOnly)) return;
+
+    QTextStream in(&f);
+    while (!in.atEnd()) {
+        in.readLine();
+        QString timeLine = in.readLine();
+        if (timeLine.isEmpty()) continue;
+
+        auto toMs = [](const QString &t) -> qint64 {
+
+            auto parts = t.split(QRegularExpression("[:,]"));
+            if (parts.size() < 4) return 0;
+            return parts[0].toLongLong() * 3600000
+                   + parts[1].toLongLong() * 60000
+                   + parts[2].toLongLong() * 1000
+                   + parts[3].toLongLong();
+        };
+
+        auto times = timeLine.split(" --> ");
+        if (times.size() < 2) continue;
+        qint64 start = toMs(times[0].trimmed());
+        qint64 end   = toMs(times[1].trimmed());
+
+        QString text;
+        QString line;
+        while (!(line = in.readLine()).isEmpty())
+            text += line + "\n";
+
+        subtitles.append({start, end, text.trimmed()});
+    }
+}
+
+void VideoSlot::updateExternalSubtitle(qint64 pos) {
+    if (!subtitlesEnabled || subtitles.isEmpty()) {
+        externalSubtitleLabel->hide();
+        subtitleOverlay->hide();
+        return;
+    }
+    for (auto &[start, end, text] : subtitles) {
+        if (pos >= start && pos <= end) {
+            repositionExternalSubtitleOverlay();
+            externalSubtitleLabel->setText(text);
+            externalSubtitleLabel->show();
+            subtitleOverlay->show();
+            return;
+        }
+    }
+    externalSubtitleLabel->hide();
+    subtitleOverlay->hide();
+}
+
+
+
+
 
 //\\VIDEOVIDEOVIDEO=======================================================================================================
 
