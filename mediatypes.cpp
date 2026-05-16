@@ -211,14 +211,19 @@ void VideoSlot::adjustVolume(float delta) {
 }
 
 void VideoSlot::selectSubtitleStream(int index) {
-    if (index == 0) {
-        player->setActiveSubtitleTrack(-1);
-        subtitlesEnabled = false;
-        externalSubtitleLabel->hide();
-        return;
+    player->setActiveSubtitleTrack(-1);
+    subtitlesEnabled = false;
+    subtitleOverlay->hide();
+    externalSubtitleLabel->hide();
+
+    if (index == 0) return;
+
+    int data = subtitleTracks->itemData(index).toInt();
+    if (data == -99) {
+        subtitlesEnabled = true;
+    } else {
+        player->setActiveSubtitleTrack(data);
     }
-    subtitlesEnabled = true;
-    player->setActiveSubtitleTrack(index - 1);
 }
 
 void VideoSlot::selectVideoStream(int stream)
@@ -238,7 +243,7 @@ void VideoSlot::updateTracks() {
     audioTracks->clear();
     videoTracks->clear();
 
-    subtitleTracks->addItem(QLatin1String("turn subtitles off"));
+    subtitleTracks->addItem("off", -1);
 
     const auto subTracks = player->subtitleTracks();
     const auto audTracks = player->audioTracks();
@@ -246,23 +251,19 @@ void VideoSlot::updateTracks() {
 
     for (int i = 0; i < vidTracks.size(); ++i)
         videoTracks->addItem(trackName(vidTracks.at(i), i), i);
-    videoTracks->setCurrentIndex(player->activeVideoTrack() + 1);
 
     for (int i = 0; i < audTracks.size(); ++i)
         audioTracks->addItem(trackName(audTracks.at(i), i), i);
-    audioTracks->setCurrentIndex(player->activeAudioTrack() + 1);
 
     for (int i = 0; i < subTracks.size(); ++i)
         subtitleTracks->addItem(trackName(subTracks.at(i), i), i);
-    subtitleTracks->setCurrentIndex(player->activeSubtitleTrack() + 1);
 
+    if (!externalSubPath.isEmpty())
+        subtitleTracks->addItem("External: " + QFileInfo(externalSubPath).fileName(), -99);
 
-    if (subtitleTracks->count() == 1)
-        subtitleTracks->addItem(QLatin1String("no tracks available"));
-    if (audioTracks->count() == 0)
-        audioTracks->addItem(QLatin1String("no tracks available"));
-    if (videoTracks->count() == 0)
-        videoTracks->addItem(QLatin1String("no tracks available"));
+    if (subtitleTracks->count() == 1) subtitleTracks->addItem("no tracks available", -2);
+    if (audioTracks->count() == 0)   audioTracks->addItem("no tracks available");
+    if (videoTracks->count() == 0)   videoTracks->addItem("no tracks available");
 }
 
 
@@ -332,11 +333,13 @@ void VideoSlot::repositionExternalSubtitleOverlay() {
 }
 
 void VideoSlot::loadExternalSubtitles(const QString &srtPath) {
-    subtitlesEnabled = true;
-    if (player->activeSubtitleTrack() != -1) player->setActiveSubtitleTrack(-1);
+    subtitlesEnabled = false;
+    subtitleOverlay->hide();
+    player->setActiveSubtitleTrack(-1);
     subtitles.clear();
-    QFile f(srtPath);
     externalSubPath = srtPath;
+
+    QFile f(srtPath);
     if (!f.open(QIODevice::ReadOnly)) return;
 
     QTextStream in(&f);
@@ -346,7 +349,6 @@ void VideoSlot::loadExternalSubtitles(const QString &srtPath) {
         if (timeLine.isEmpty()) continue;
 
         auto toMs = [](const QString &t) -> qint64 {
-
             auto parts = t.split(QRegularExpression("[:,]"));
             if (parts.size() < 4) return 0;
             return parts[0].toLongLong() * 3600000
@@ -367,6 +369,10 @@ void VideoSlot::loadExternalSubtitles(const QString &srtPath) {
 
         subtitles.append({start, end, text.trimmed()});
     }
+
+    updateTracks();
+    // auto-select the external entry
+    subtitleTracks->setCurrentIndex(subtitleTracks->count() - 1);
 }
 
 void VideoSlot::updateExternalSubtitle(qint64 pos) {

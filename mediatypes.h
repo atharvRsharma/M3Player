@@ -4,6 +4,7 @@
 
 
 #include "qpdflink.h"
+#include "qwidget.h"
 #include <memory>
 
 #include <QString>
@@ -122,7 +123,7 @@ struct VideoSlot : MediaSlot {
     }
 
     QString type() const override { return "video"; }
-    ~VideoSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); player->setVideoOutput(nullptr); }
+    ~VideoSlot() { subtitleOverlay->deleteLater(); player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); player->setVideoOutput(nullptr); }
 
 private:
     // pvt local fns

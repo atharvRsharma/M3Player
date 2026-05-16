@@ -190,7 +190,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     vid->loadExternalSubtitles(file);
                 }
             } else {
-                if (!file.isEmpty()) addMedia(file);
+                if (!file.isEmpty()) {
+                    if (QFileInfo(file).isDir()) {
+                        for (const auto &sub : QDir(file).entryInfoList(QDir::Files))
+                            addMedia(sub.filePath());
+                    } else {
+                        addMedia(file);
+                    }
+                }
             }
         }
         return true;
