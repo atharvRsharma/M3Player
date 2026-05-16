@@ -322,12 +322,7 @@ void VideoSlot::connectSlots(QObject* thisInstance) {
     });
 
     QObject::connect(slider, &QSlider::sliderPressed, thisInstance, [this]() {
-        player->setPosition(slider->value());
-    });
-
-    QObject::connect(slider, &QSlider::valueChanged, thisInstance, [this](int value) {
-        if (!slider->isSliderDown())
-            player->setPosition(value);
+        player->setPosition(slider->sliderPosition());
     });
 }
 
@@ -576,6 +571,10 @@ void AudioSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(player, &QMediaPlayer::positionChanged, slider, &QSlider::setValue);
     QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
     QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
+
+    QObject::connect(slider, &QSlider::sliderPressed, thisInstance, [this]() {
+        player->setPosition(slider->sliderPosition());
+    });
 
     QObject::connect(player, &QMediaPlayer::metaDataChanged, thisInstance, [this]{
         if(QVariant thumbnail = player->metaData().value(QMediaMetaData::ThumbnailImage); !thumbnail.isNull()) {
