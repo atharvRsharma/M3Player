@@ -320,6 +320,15 @@ void VideoSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(player, &QMediaPlayer::positionChanged, thisInstance, [this](qint64 pos) {
         if (externalSubtitleLabel) updateExternalSubtitle(pos);
     });
+
+    QObject::connect(slider, &QSlider::sliderPressed, thisInstance, [this]() {
+        player->setPosition(slider->value());
+    });
+
+    QObject::connect(slider, &QSlider::valueChanged, thisInstance, [this](int value) {
+        if (!slider->isSliderDown())
+            player->setPosition(value);
+    });
 }
 
 
@@ -371,7 +380,7 @@ void VideoSlot::loadExternalSubtitles(const QString &srtPath) {
     }
 
     updateTracks();
-    // auto-select the external entry
+    // auto-select the external entry(try consolidating the fn, this is beyond stupid and overengineered)
     subtitleTracks->setCurrentIndex(subtitleTracks->count() - 1);
 }
 
