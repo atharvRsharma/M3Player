@@ -71,6 +71,7 @@ MainWindow::MainWindow(QWidget *parent)
     grid->setContentsMargins(0, 0, 0, 0);
     container->setAcceptDrops(true);
     container->installEventFilter(this);
+    container->setAttribute(Qt::WA_AcceptTouchEvents);
     setCentralWidget(container);
     setFocusPolicy(Qt::StrongFocus);
 
@@ -115,12 +116,18 @@ void MainWindow::openLinks() {
                                "-g", url});
 
     connect(proc, &QProcess::finished, this, [=]() {
-        QString streamUrl = proc->readAllStandardOutput().trimmed();
+        QString out = proc->readAllStandardOutput().trimmed();
         QString err = proc->readAllStandardError().trimmed();
-        qDebug() << "stream url:" << streamUrl;
-        qDebug() << "yt-dlp err:" << err;
-        if (!streamUrl.isEmpty())
-            addMedia(streamUrl);
+        qDebug() << "raw out:" << out;
+        qDebug() << "err:" << err;
+        QStringList urls = out.split('\n', Qt::SkipEmptyParts);
+        qDebug() << "url count:" << urls.size();
+        for (const QString &streamUrl : urls) {
+            QString u = streamUrl.trimmed();
+            qDebug() << "adding:" << u;
+            if (!u.isEmpty())
+                addMedia(u);
+        }
         proc->deleteLater();
     });
 }
@@ -227,7 +234,17 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         return true;
     }
 
-
+    if (event->type() == QEvent::MouseButtonDblClick) {
+        auto *e = static_cast<QMouseEvent*>(event);
+        if (e->button() == Qt::LeftButton) {
+            int i = findSlotIndex();
+            if (fullscreenIndex == -1 && i != -1)
+                enterFullscreen(i);
+            else if (fullscreenIndex != -1)
+                exitFullscreen();
+            return true;
+        }
+    }
 
     if (event->type() == QEvent::MouseButtonPress) {
         auto *e = static_cast<QMouseEvent*>(event);
@@ -243,7 +260,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     if (obj == pdf->viewer->viewport()) {
                         pdf->dragStart = e->pos();
                         pdf->isDragging = true;
-                        //pdf->processLinks(e->pos());
                         return true;
                     }
                 }

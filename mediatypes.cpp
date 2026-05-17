@@ -671,14 +671,13 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     findClose         = new QPushButton("x", findBar);
 
     navBar            = new QWidget(wrapper);
+    pageCount         = new QLabel(navBar);
     prevPage          = new QPushButton("↑", navBar);
     nextPage          = new QPushButton("↓", navBar);
     sidePanelButton   = new QPushButton("=", navBar);
 
     thumbnailView       = new QGraphicsView(sidePanel);
     thumbnailScene      = new QGraphicsScene(thumbnailView);
-
-
 
 
     linkModel->setDocument(doc);
@@ -733,6 +732,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     navLayout->addStretch();
     navLayout->addWidget(prevPage);
     navLayout->addWidget(pageSelector);
+    navLayout->addWidget(pageCount);
     navLayout->addWidget(nextPage);
 
 
@@ -789,6 +789,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     }
     doc->load(path);
     filePath = path;
+    pageCount->setText("of " + QString::number(doc->pageCount()));
 
     viewer->setDocument(doc);
     bookmarkModel->setDocument(doc);
@@ -1105,6 +1106,8 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(thumbnailTabButton, &QPushButton::clicked, thisInstance, [this] {
         showThumbnailTab();
     });
+
+
 }
 
 
