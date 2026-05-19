@@ -84,8 +84,6 @@ jobs:
         copy release\M3Player.exe dist\
         windeployqt dist\M3Player.exe
         copy C:\vcpkg\installed\x64-windows\bin\tag.dll dist\
-        copy C:\vcpkg\installed\x64-windows\bin\poppler-qt6.dll dist\
-        copy C:\vcpkg\installed\x64-windows\bin\poppler.dll dist\
         copy C:\vcpkg\installed\x64-windows\bin\jpeg62.dll dist\
         Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" -OutFile dist\yt-dlp.exe
         Compress-Archive -Path dist\* -DestinationPath M3Player-windows.zip
