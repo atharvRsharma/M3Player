@@ -93,8 +93,8 @@ struct VideoSlot : MediaSlot {
     QList<std::tuple<qint64, qint64, QString>> subtitles;
     QString externalSubPath;
 
-    const qint64 seekStep   = 5000;
     float currentVolume     = 1.0f;
+    const qint64 seekStep   = 5000;
     bool subtitlesEnabled   = true;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
@@ -147,8 +147,8 @@ struct AudioSlot : MediaSlot {
     QSize        lastSize;
     QImage       coverImage;
 
-    const qint64 seekStep = 5000;
     float currentVolume = 1.0f;
+    const qint64 seekStep = 5000;
 
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
@@ -232,12 +232,12 @@ struct PdfSlot : MediaSlot {
     QString             pendingSearch;
     QString             filePath;
     qreal               factor;
+    QPoint              dragEnd;
+    QPoint              dragStart;
     int                 currentResultIndex      = -1;
+    bool                isDragging              = false;
     bool                sidePanelOpen           = false;
     bool                thumbnailsLoaded        = false;
-    QPoint dragStart;
-    QPoint dragEnd;
-    bool isDragging = false;
 
 
 
@@ -273,6 +273,9 @@ private:
     QPointF toPdfPoint(QPoint viewportPos, int page);
 };
 
+struct GroupSlot : MediaSlot {
+
+};
 
 
 // struct PdfSlotMinimal : MediaSlot {

@@ -576,6 +576,7 @@ void MainWindow::enterFullscreen(int index)
     if (mediaSlots[index]->type() == "pdf") {
         auto *pdf = static_cast<PdfSlot*>(mediaSlots[index].get());
         pdf->navBar->show();
+        ui->toolBar_2->hide();
     }
 
     grid->removeWidget(mediaSlots[index]->wrapper);
@@ -605,6 +606,7 @@ void MainWindow::exitFullscreen() {
             pdf->navBar->hide();
             pdf->sidePanel->hide();
             pdf->findBar->hide();
+            ui->toolBar_2->show();
         }
         settings->hide();
 
