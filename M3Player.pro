@@ -20,8 +20,8 @@ win32 {
 
     copytagdll.commands = \
         copy /Y $$shell_path($$VCPKG_BIN/tag.dll) $$DESTDIR_WIN & \
-        copy /Y $$shell_path($$VCPKG_BIN/poppler-qt6.dll) $$DESTDIR_WIN & \
-        copy /Y $$shell_path($$VCPKG_BIN/poppler.dll) $$DESTDIR_WIN & \
+        #copy /Y $$shell_path($$VCPKG_BIN/poppler-qt6.dll) $$DESTDIR_WIN & \
+        #copy /Y $$shell_path($$VCPKG_BIN/poppler.dll) $$DESTDIR_WIN & \
         copy /Y $$shell_path($$VCPKG_BIN/jpeg62.dll) $$DESTDIR_WIN
 
     first.depends = $(first) copytagdll
