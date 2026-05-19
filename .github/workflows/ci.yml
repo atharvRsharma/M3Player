@@ -84,7 +84,10 @@ jobs:
         copy release\M3Player.exe dist\
         windeployqt dist\M3Player.exe
         copy C:\vcpkg\installed\x64-windows\bin\tag.dll dist\
-        copy C:\vcpkg\installed\x64-windows\bin\zlib1.dll dist\
+        # copy everything else taglib might need
+        Get-ChildItem C:\vcpkg\installed\x64-windows\bin\*.dll | ForEach-Object { 
+          Copy-Item $_.FullName dist\ -ErrorAction SilentlyContinue 
+        }
         Invoke-WebRequest -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" -OutFile dist\yt-dlp.exe
         Compress-Archive -Path dist\* -DestinationPath M3Player-windows.zip
 
