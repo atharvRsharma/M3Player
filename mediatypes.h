@@ -254,7 +254,7 @@ struct PdfSlot : MediaSlot {
 
     // special fns
     void enableSearch(bool x);
-    void processLinks(QPoint clickPos = QPoint());
+    bool processLinks(QPoint clickPos = QPoint(), bool shouldExecute = true);
     QString getSelectedText();
     bool hasTextAt(QPointF pt, int page);
 private:

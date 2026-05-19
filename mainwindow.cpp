@@ -210,6 +210,20 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         return true;
     }
 
+    if (event->type() == QEvent::MouseMove) {
+        if (fullscreenIndex != -1 && mediaSlots[fullscreenIndex]->type() == "pdf") {
+            auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+            if (obj == pdf->viewer->viewport()) {
+                auto *e = static_cast<QMouseEvent*>(event);
+                if (pdf->processLinks(e->pos(), false))
+                    pdf->viewer->viewport()->setCursor(Qt::PointingHandCursor);
+                else
+                    pdf->viewer->viewport()->setCursor(Qt::ArrowCursor);
+                return false;
+            }
+        }
+    }
+
     if (event->type() == QEvent::HoverEnter) {
         int i = findSlotIndex();
         if (i != -1) {
@@ -245,6 +259,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             return true;
         }
     }
+
 
     if (event->type() == QEvent::MouseButtonPress) {
         auto *e = static_cast<QMouseEvent*>(event);
@@ -318,6 +333,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         if (fullscreenIndex != -1) {
             if(mediaSlots[fullscreenIndex]->type() == "pdf") {
                 auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+                pdf->viewer->setCursor(Qt::ArrowCursor);
                 if (e->button() == Qt::LeftButton && pdf->isDragging) {
                     pdf->dragEnd = e->pos();
                     pdf->isDragging = false;
@@ -338,7 +354,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         if (fullscreenIndex == -1) {
             for (int i = 0; i < (int)mediaSlots.size(); ++i) {
                 if (mediaSlots[i]->type() == "image" && mediaSlots[i]->wrapper == obj) {
-                    auto *img = dynamic_cast<ImageSlot*>(mediaSlots[i].get());
+                    auto *img = static_cast<ImageSlot*>(mediaSlots[i].get());
                     img->viewer->fitInView(img->item, Qt::KeepAspectRatio);
                     img->border->setGeometry(img->wrapper->rect());
                     return true;

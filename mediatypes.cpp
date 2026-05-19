@@ -1111,7 +1111,7 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
 }
 
 
-void PdfSlot::processLinks(QPoint clickPos) {
+bool PdfSlot::processLinks(QPoint clickPos, bool shouldExecute) {
     int page = nav->currentPage();
     linkModel->setPage(page);
 
@@ -1142,20 +1142,22 @@ void PdfSlot::processLinks(QPoint clickPos) {
             );
 
         if (pixelRect.contains(clickPos)) {
-            QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
-            if (url.isValid()) {
-                QDesktopServices::openUrl(url);
-            } else {
-                int targetPage = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
-                QPointF loc    = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
-                qreal zoom     = idx.data(int(QPdfLinkModel::Role::Zoom)).toReal();
-                nav->jump(targetPage, loc, zoom != 0 ? zoom : nav->currentZoom());
+            if (shouldExecute) {
+                QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
+                if (url.isValid()) {
+                    QDesktopServices::openUrl(url);
+                } else {
+                    int targetPage = idx.data(int(QPdfLinkModel::Role::Page)).toInt();
+                    QPointF loc    = idx.data(int(QPdfLinkModel::Role::Location)).toPointF();
+                    qreal zoom     = idx.data(int(QPdfLinkModel::Role::Zoom)).toReal();
+                    nav->jump(targetPage, loc, zoom != 0 ? zoom : nav->currentZoom());
+                }
             }
-            return;
+            return true;
         }
     }
+    return false;
 }
-
 
 PdfSlot::~PdfSlot() {
     doc->close();
