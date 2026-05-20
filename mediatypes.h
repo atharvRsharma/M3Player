@@ -210,6 +210,8 @@ struct PdfSlot : MediaSlot {
     QTreeView           *bookmarkTree;
     QPdfLinkModel       *linkModel;
     QLabel              *pageCount;
+    QTimer              *cacheFlushTimer;
+    QWidget             *linkHighlight;
 
     QWidget             *findBar;
     QPushButton         *findNext;

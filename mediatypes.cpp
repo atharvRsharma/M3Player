@@ -660,6 +660,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     linkModel         = new QPdfLinkModel(wrapper);
     bookmarkModel     = new QPdfBookmarkModel(wrapper);
     sidePanel         = new QWidget(wrapper);
+    cacheFlushTimer   = new QTimer(wrapper);
     indexTabButton    = new QPushButton("idx", sidePanel);
     thumbnailTabButton = new QPushButton("pg", sidePanel);
 
@@ -678,6 +679,14 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
 
     thumbnailView       = new QGraphicsView(sidePanel);
     thumbnailScene      = new QGraphicsScene(thumbnailView);
+
+    linkHighlight = new QWidget(viewer->viewport());
+    linkHighlight->setAttribute(Qt::WA_TransparentForMouseEvents);
+    linkHighlight->setStyleSheet("background: rgba(255, 220, 0, 60); border: 1px solid rgba(255, 180, 0, 180);");
+    linkHighlight->hide();
+
+    cacheFlushTimer->setSingleShot(true);
+    cacheFlushTimer->setInterval(3000);
 
 
     linkModel->setDocument(doc);
@@ -1107,7 +1116,19 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
         showThumbnailTab();
     });
 
+    QObject::connect(viewer->verticalScrollBar(), &QScrollBar::valueChanged,
+                     thisInstance, [this]() {
+                         cacheFlushTimer->start();
+                     });
 
+    QObject::connect(cacheFlushTimer, &QTimer::timeout,
+                     thisInstance, [this]() {
+                         int scrollPos = viewer->verticalScrollBar()->value();
+                         viewer->setDocument(nullptr);
+                         viewer->setDocument(doc);
+                         linkModel->setDocument(doc);
+                         viewer->verticalScrollBar()->setValue(scrollPos);
+                     });
 }
 
 
@@ -1142,6 +1163,9 @@ bool PdfSlot::processLinks(QPoint clickPos, bool shouldExecute) {
             );
 
         if (pixelRect.contains(clickPos)) {
+            linkHighlight->setGeometry(pixelRect.toRect());
+            linkHighlight->show();
+            linkHighlight->raise();
             if (shouldExecute) {
                 QUrl url = idx.data(int(QPdfLinkModel::Role::Url)).toUrl();
                 if (url.isValid()) {
@@ -1156,6 +1180,7 @@ bool PdfSlot::processLinks(QPoint clickPos, bool shouldExecute) {
             return true;
         }
     }
+    linkHighlight->hide();
     return false;
 }
 
