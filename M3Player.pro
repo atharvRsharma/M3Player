@@ -43,14 +43,18 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 
 QMAKE_PROJECT_DEPTH = 0
 
+INCLUDEPATH += vendor/miniz
+
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
     mediatypes.cpp \
-    miniz.c
+    vendor/miniz/miniz.c \
+    vendor/miniz/miniz_tdef.c \
+    vendor/miniz/miniz_tinfl.c \
+    vendor/miniz/miniz_zip.c
 
 HEADERS += \
-    miniz.h \
     mainwindow.h \
     mediatypes.h
 
