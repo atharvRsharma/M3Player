@@ -3,6 +3,7 @@
 
 
 
+#include "qlabel.h"
 #include "qpdflink.h"
 #include "qwidget.h"
 #include <memory>
@@ -123,7 +124,7 @@ struct VideoSlot : MediaSlot {
     }
 
     QString type() const override { return "video"; }
-    ~VideoSlot() { subtitleOverlay->deleteLater(); player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); player->setVideoOutput(nullptr); }
+    ~VideoSlot();
 
 private:
     // pvt local fns
@@ -174,7 +175,7 @@ struct AudioSlot : MediaSlot {
 
 
     QString type() const override { return "audio"; }
-    ~AudioSlot() { player->setSource(QUrl()); stop(); player->setAudioOutput(nullptr); }
+    ~AudioSlot();
 
 private:
     // pvt local fns
@@ -288,10 +289,15 @@ struct ComicSlot : MediaSlot {
     void backward() override;
     void zoom(qreal x) override;
     void scroll(int x) override;
+    //void connectSlots(QObject* thisInstance) override;
     QString type() const override { return "comic"; }
 
 private:
     void showPage(int index);
+
+
+signals:
+    void pageChanged(int newPage);
 };
 
 struct PlaintextSlot : MediaSlot {

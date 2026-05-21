@@ -406,9 +406,13 @@ void VideoSlot::updateExternalSubtitle(qint64 pos) {
     subtitleOverlay->hide();
 }
 
-
-
-
+VideoSlot::~VideoSlot() {
+    subtitleOverlay->deleteLater();
+    player->setSource(QUrl());
+    stop();
+    player->setAudioOutput(nullptr);
+    player->setVideoOutput(nullptr);
+}
 
 //\\VIDEOVIDEOVIDEO=======================================================================================================
 
@@ -600,6 +604,16 @@ void AudioSlot::connectSlots(QObject* thisInstance) {
     });
 }
 
+
+AudioSlot::~AudioSlot() {
+    cover->deleteLater();
+    title->deleteLater();
+    artist->deleteLater();
+    lyrics->deleteLater();
+    player->setSource(QUrl());
+    stop();
+    player->setAudioOutput(nullptr);
+}
 
 //\\AUDIOAUDIOAUDIO=======================================================================================================
 
@@ -1282,6 +1296,8 @@ void ComicSlot::showPage(int index) {
     QTimer::singleShot(0, viewer, [this, item]() {
         viewer->fitInView(item, Qt::KeepAspectRatio);
     });
+
+    //emit pageChanged(currentPage);
 }
 
 void ComicSlot::forward()  { showPage(currentPage + 1); }
