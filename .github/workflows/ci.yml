@@ -23,6 +23,20 @@ jobs:
         version: '6.10.3'
         modules: 'qtmultimedia qtpdf'
 
+    - name: Generate miniz_export.h (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        cd vendor/miniz
+        cmake -B build
+        cp build/miniz_export.h .
+
+    - name: Generate miniz_export.h (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        cd vendor/miniz
+        cmake -B build
+        copy build\miniz_export.h .
+
     - name: Install dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
