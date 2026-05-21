@@ -40,6 +40,8 @@
 #include <QtPdf/QPdfSelection>
 #include <QPdfLinkModel>
 #include <QDesktopServices>
+
+#include "miniz.h"
 //#include <poppler/qt6/poppler-qt6.h>
 
 
@@ -56,6 +58,7 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
     static const QStringList aud = {"mp3", "m4a", "flac", "ogg", "wav"};
     static const QStringList img = {"png","jpg","jpeg","webp","gif"};
     static const QStringList pdf = {"pdf"};
+    static const QStringList comic = {"cbz"};
 
     QString ext = QFileInfo(QUrl(path).path()).suffix().toLower();
 
@@ -76,6 +79,11 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
     }
     if (pdf.contains(ext)) {
         auto slot = std::make_unique<PdfSlot>();
+        slot->load(path, parent, thisInstance);
+        return slot;
+    }
+    if (comic.contains(ext)) {
+        auto slot = std::make_unique<ComicSlot>();
         slot->load(path, parent, thisInstance);
         return slot;
     }
@@ -1191,6 +1199,115 @@ PdfSlot::~PdfSlot() {
 //\\PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 
+//COMICCOMICCOMIC==========================================================================================================================
+
+
+void ComicSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
+    wrapper = new QWidget(parent);
+    viewer  = new QGraphicsView(wrapper);
+    scene   = new QGraphicsScene(viewer);
+    border  = new QWidget(wrapper);
+
+    auto *layout = new QVBoxLayout(wrapper);
+    layout->setContentsMargins(0,0,0,0);
+    layout->addWidget(viewer);
+
+    viewer->setScene(scene);
+    viewer->setDragMode(QGraphicsView::ScrollHandDrag);
+    viewer->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
+    viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+    viewer->setBackgroundBrush(Qt::black);
+
+    wrapper->installEventFilter(thisInstance);
+    wrapper->setAcceptDrops(true);
+    wrapper->setAttribute(Qt::WA_Hover);
+    viewer->installEventFilter(thisInstance);
+    viewer->viewport()->installEventFilter(thisInstance);
+
+    border->setAttribute(Qt::WA_TransparentForMouseEvents);
+    border->setGeometry(wrapper->rect());
+    border->raise();
+
+    mz_zip_archive zip;
+    memset(&zip, 0, sizeof(zip));
+    if (!mz_zip_reader_init_file(&zip, path.toUtf8().constData(), 0))
+        return;
+
+    int fileCount = (int)mz_zip_reader_get_num_files(&zip);
+    QList<QPair<QString, QByteArray>> files;
+
+    for (int i = 0; i < fileCount; ++i) {
+        mz_zip_archive_file_stat stat;
+        if (!mz_zip_reader_file_stat(&zip, i, &stat)) continue;
+
+        QString name = QString::fromUtf8(stat.m_filename);
+        QString ext  = QFileInfo(name).suffix().toLower();
+        if (!QStringList{"jpg","jpeg","png","webp"}.contains(ext)) continue;
+
+        size_t size;
+        void *data = mz_zip_reader_extract_to_heap(&zip, i, &size, 0);
+        if (!data) continue;
+
+        QByteArray ba((const char*)data, (int)size);
+        mz_free(data);
+        files.append({name, ba});
+    }
+    mz_zip_reader_end(&zip);
+
+    std::sort(files.begin(), files.end(), [](auto &a, auto &b) {
+        return a.first < b.first;
+    });
+
+    for (auto &[name, data] : files)
+        pageData.append(data);
+
+    totalPages = pageData.size();
+    if (totalPages == 0) return;
+
+    showPage(0);
+}
+
+void ComicSlot::showPage(int index) {
+    if (index < 0 || index >= totalPages) return;
+    currentPage = index;
+    scene->clear();
+
+    QImage img;
+    img.loadFromData(pageData[currentPage]);
+    auto *item = new QGraphicsPixmapItem(QPixmap::fromImage(img));
+    item->setTransformationMode(Qt::SmoothTransformation);
+    scene->addItem(item);
+    scene->setSceneRect(scene->itemsBoundingRect());
+
+    QTimer::singleShot(0, viewer, [this, item]() {
+        viewer->fitInView(item, Qt::KeepAspectRatio);
+    });
+}
+
+void ComicSlot::forward()  { showPage(currentPage + 1); }
+
+void ComicSlot::backward() { showPage(currentPage - 1); }
+
+void ComicSlot::scroll(int x) {
+    viewer->verticalScrollBar()->setValue(viewer->verticalScrollBar()->value() + x);
+}
+void ComicSlot::zoom(qreal x) {
+    qreal n = zoomFactor * x;
+    if (n < 0.5 || n > 10.0) return;
+    zoomFactor = n;
+    viewer->scale(x, x);
+}
+
+//\\COMICCOMICCOMIC==========================================================================================================================
+
+
+//PLAINTEXTPLAINTEXTPLAINTEXT=================================================================================================================
+
+void PlaintextSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
+
+}
+
+//\\PLAINTEXTPLAINTEXTPLAINTEXT=================================================================================================================
 
 //PDFPDFPDPFPDFPDF===MINIMAL==============================================================================================================
 

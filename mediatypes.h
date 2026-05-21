@@ -275,6 +275,28 @@ private:
     QPointF toPdfPoint(QPoint viewportPos, int page);
 };
 
+struct ComicSlot : MediaSlot {
+    QGraphicsView       *viewer;
+    QGraphicsScene      *scene;
+    QList<QByteArray>   pageData;
+    qreal               zoomFactor = 1.0;
+    int                 currentPage = 0;
+    int                 totalPages  = 0;
+
+    void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+    void forward() override;
+    void backward() override;
+    void zoom(qreal x) override;
+    void scroll(int x) override;
+    QString type() const override { return "comic"; }
+
+private:
+    void showPage(int index);
+};
+
+struct PlaintextSlot : MediaSlot {
+    void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+};
 
 
 // struct PdfSlotMinimal : MediaSlot {

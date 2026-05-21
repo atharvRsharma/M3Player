@@ -46,9 +46,11 @@ QMAKE_PROJECT_DEPTH = 0
 SOURCES += \
     main.cpp \
     mainwindow.cpp \
-    mediatypes.cpp
+    mediatypes.cpp \
+    miniz.c
 
 HEADERS += \
+    miniz.h \
     mainwindow.h \
     mediatypes.h
 
