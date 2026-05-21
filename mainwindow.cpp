@@ -269,8 +269,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             bool ctrl = e->modifiers() & Qt::ControlModifier;
 
             if (fullscreenIndex != -1) {
-                if(mediaSlots[fullscreenIndex]->type() == "pdf") {
+                if (mediaSlots[fullscreenIndex]->type() == "pdf") {
                     auto *pdf = static_cast<PdfSlot*>(mediaSlots[fullscreenIndex].get());
+
+                    if (obj == pdf->thumbnailView->viewport() && pdf->thumbnailView->isVisible()) {
+                        QPointF sp = pdf->thumbnailView->mapToScene(e->pos());
+                        pdf->syncPageToThumbnail(sp);
+                        return true;
+                    }
 
                     if (obj == pdf->viewer->viewport()) {
                         pdf->dragStart = e->pos();

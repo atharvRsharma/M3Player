@@ -2,10 +2,6 @@
 #define MEDIATYPES_H
 
 
-
-#include "qlabel.h"
-#include "qpdflink.h"
-#include "qwidget.h"
 #include <memory>
 
 #include <QString>
@@ -15,7 +11,6 @@
 #include <QPixmap>
 #include <QHash>
 #include <QMediaPlayer>
-
 
 
 QT_BEGIN_NAMESPACE
@@ -47,8 +42,6 @@ class QTreeView;
 class QPdfPageRenderer;
 class QPdfLinkModel;
 QT_END_NAMESPACE
-
-
 
 
 struct MediaSlot  {
@@ -231,18 +224,16 @@ struct PdfSlot : MediaSlot {
 
     QPushButton         *indexTabButton;
 
-
+    QList<QGraphicsPixmapItem*> thumbnailIndices;
     QString             pendingSearch;
     QString             filePath;
     qreal               factor;
+    QPoint              dragStart;
+    QPoint              dragEnd;
     int                 currentResultIndex      = -1;
     bool                sidePanelOpen           = false;
     bool                thumbnailsLoaded        = false;
-    QPoint dragStart;
-    QPoint dragEnd;
-    bool isDragging = false;
-
-
+    bool                isDragging              = false;
 
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
@@ -260,6 +251,9 @@ struct PdfSlot : MediaSlot {
     bool processLinks(QPoint clickPos = QPoint(), bool shouldExecute = true);
     QString getSelectedText();
     bool hasTextAt(QPointF pt, int page);
+    void syncThumbnailToPage();
+    void syncPageToThumbnail(QPointF pagePos);
+
 private:
     // pvt local fns
     void initComboBox();

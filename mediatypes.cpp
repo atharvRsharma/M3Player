@@ -584,11 +584,11 @@ void AudioSlot::connectSlots(QObject* thisInstance) {
     QObject::connect(player, &QMediaPlayer::seekableChanged, slider, &QSlider::setEnabled);
     QObject::connect(slider, &QSlider::sliderMoved, player, &QMediaPlayer::setPosition);
 
-    QObject::connect(slider, &QSlider::sliderPressed, thisInstance, [this]() {
+    QObject::connect(slider, &QSlider::sliderPressed, thisInstance, [this] {
         player->setPosition(slider->sliderPosition());
     });
 
-    QObject::connect(player, &QMediaPlayer::metaDataChanged, thisInstance, [this]{
+    QObject::connect(player, &QMediaPlayer::metaDataChanged, thisInstance, [this] {
         if(QVariant thumbnail = player->metaData().value(QMediaMetaData::ThumbnailImage); !thumbnail.isNull()) {
             coverImage = thumbnail.value<QImage>();
             cover->setPixmap(QPixmap::fromImage(coverImage).scaled(cover->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -725,6 +725,7 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     bookmarkTree->hide();
     thumbnailView->hide();
     sidePanelButton->setMaximumWidth(40);
+    thumbnailView->viewport()->installEventFilter(thisInstance);
 
     navBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     navBar->setFixedHeight(36);
@@ -748,9 +749,6 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     navLayout->addWidget(zoomSelector);
 
 
-
-
-
     pageSelector->setFixedHeight(32);
     pageSelector->setMaximumWidth(90);
     zoomSelector->setFixedHeight(32);
@@ -766,10 +764,8 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     navLayout->addWidget(pageCount);
     navLayout->addWidget(nextPage);
 
-
     prevPage->setFixedSize(30, 30);
     nextPage->setFixedSize(30, 30);
-
 
     auto *sidePanelLayout = new QVBoxLayout(sidePanel);
     sidePanelLayout->setContentsMargins(0, 0, 0, 0);
@@ -826,7 +822,6 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     bookmarkModel->setDocument(doc);
     pageSelector->setDocument(doc);
     searchModel->setDocument(doc);
-
 
     nav = viewer->pageNavigator();
     viewer->setPageMode(QPdfView::PageMode::MultiPage);
@@ -1058,6 +1053,7 @@ void PdfSlot::populateThumbnailTab() {
             item->setPos(0, yOffset);
             item->setTransformationMode(Qt::SmoothTransformation);
             thumbnailScene->addItem(item);
+            thumbnailIndices.emplaceBack(item);
             yOffset += pix.height() + 10;
         }
         thumbnailView->setScene(thumbnailScene);
@@ -1084,19 +1080,36 @@ void PdfSlot::populateThumbnailTab() {
         return pixmaps;
     });
 
-
     watcher->setFuture(future);
 }
 
+void PdfSlot::syncThumbnailToPage() {
+    if (thumbnailIndices.isEmpty()) return;
+    int page = nav->currentPage();
+    if (page < 0 || page >= thumbnailIndices.size()) return;
+    auto destination = thumbnailIndices[page];
+    thumbnailView->centerOn(destination);
+}
+
+void PdfSlot::syncPageToThumbnail(QPointF pagePos) {
+    for (int i = 0; i < thumbnailIndices.size(); ++i) {
+        if (thumbnailIndices[i]->boundingRect()
+                .translated(thumbnailIndices[i]->pos())
+                .contains(pagePos)) {
+            nav->jump(i, {}, nav->currentZoom());
+            break;
+        }
+    }
+}
 
 void PdfSlot::connectSlots(QObject* thisInstance) {
-    QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this]() {
+    QObject::connect(findNext, &QPushButton::clicked, thisInstance, [this] {
         nextResult();
     });
-    QObject::connect(findPrev, &QPushButton::clicked, thisInstance, [this]() {
+    QObject::connect(findPrev, &QPushButton::clicked, thisInstance, [this] {
         prevResult();
     });
-    QObject::connect(findClose, &QPushButton::clicked, thisInstance, [this]() {
+    QObject::connect(findClose, &QPushButton::clicked, thisInstance, [this] {
         enableSearch(false);
     });
 
@@ -1117,15 +1130,19 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
         currentResultIndex = -1;
     });
 
+    QObject::connect(nav, &QPdfPageNavigator::currentPageChanged, thisInstance, [this] {
+        syncThumbnailToPage();
+    });
+
     QObject::connect(bookmarkTree, &QTreeView::clicked, thisInstance, [this](const QModelIndex &index) {
         int page = index.data(int(QPdfBookmarkModel::Role::Page)).toInt();
         nav->jump(page, {}, nav->currentZoom());
     });
 
-    QObject::connect(prevPage, &QPushButton::clicked, thisInstance, [this]() {
+    QObject::connect(prevPage, &QPushButton::clicked, thisInstance, [this] {
         nav->jump(nav->currentPage() - 1, {}, nav->currentZoom());
     });
-    QObject::connect(nextPage, &QPushButton::clicked, thisInstance, [this]() {
+    QObject::connect(nextPage, &QPushButton::clicked, thisInstance, [this] {
         nav->jump(nav->currentPage() + 1, {}, nav->currentZoom());
     });
     QObject::connect(sidePanelButton, &QPushButton::clicked, thisInstance, [this] {
