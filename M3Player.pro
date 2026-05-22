@@ -6,7 +6,7 @@ CONFIG += c++17
 
 VCPKG_ROOT = C:/vcpkg
 
-RC_ICONS = icons/ex_curve.ico
+RC_ICONS = icons/convertico-ex_curve.ico
 
 win32 {
     INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
@@ -69,3 +69,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     resources.qrc
+
+DISTFILES +=

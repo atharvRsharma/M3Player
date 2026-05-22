@@ -1047,7 +1047,7 @@ void PdfSlot::showThumbnailTab() {
 void PdfSlot::populateThumbnailTab() {
     int pageCt = doc->pageCount();
     auto *watcher = new QFutureWatcher<QList<QPixmap>>();
-    QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, [&, watcher]() {
+    QObject::connect(watcher, &QFutureWatcher<QList<QPixmap>>::finished, watcher, [&, watcher]() {
         auto pixmaps = watcher->result();
         qreal yOffset = 0;
         for (auto &pix : pixmaps) {
@@ -1159,6 +1159,7 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
 
     QObject::connect(viewer->verticalScrollBar(), &QScrollBar::valueChanged,
                      thisInstance, [this]() {
+                         pageSelector->setCurrentPage(nav->currentPage());
                          cacheFlushTimer->start();
                      });
 
