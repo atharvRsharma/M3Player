@@ -1,4 +1,11 @@
-# M3Player
+![CI](https://github.com/atharvRsharma/M3Player/actions/workflows/ci.yml/badge.svg)
+<br></br>
+
+<div align="center">
+  <img src="icons/rdme.svg" width="80px"/>
+  <h1>M3Player</h1>
+  <p>A desktop media player built for people who open too many files at once.</p>
+</div>
 
 A desktop media player that lets you open multiple files side by side in a grid. Videos, audio, images, and PDFs all in one window.
 
@@ -13,35 +20,45 @@ Drag and drop files or folders straight onto the window. Dropping a folder adds 
 - Audio: mp3, m4a, flac, ogg, wav
 - Images: png, jpg, jpeg, webp, gif
 - PDF
+- Comic Book: cbz
 
 Online video works too via the link button, it runs yt-dlp under the hood so anything yt-dlp supports should work. However, it is extremely janky and should be avoided, may very well be taken out in future releases.
 
 ## Controls
 
 **General**
-- `Space` — play/pause
-- `F` — fullscreen/exit fullscreen
-- `Escape` — exit fullscreen
-- `R` — replay from start
-- `M` — mute/unmute
-- `Delete` — close selected
-- `Ctrl+A` — select all (run again to deselect all)
-- Arrow keys — navigate between tiles
-- `+` / `-` — zoom in/out (fullscreen)
-- Right-click — close menu
 
-**Video/Audio (fullscreen)**
-- `←` / `→` — seek forward/backward 5 seconds
-- `↑` / `↓` — volume up/down
-- `Ctrl` + arrow keys — switch between fullscreened tiles without exiting
+|Key|Action|
+|-|-|
+|`Space`|Play / pause|
+|`F`|Toggle fullscreen|
+|`Escape`|Exit fullscreen|
+|`R`|Replay from start|
+|`M`|Mute / unmute|
+|`Delete`|Close selected tiles|
+|`Ctrl+A`|Select all (press again to deselect all)|
+|Arrow keys|Navigate between tiles|
+|`+` / `-`|Zoom in / out (fullscreen)|
+|Right-click|Context menu|
+
+**Video / Audio (fullscreen)**
+
+|Key|Action|
+|-|-|
+|`←` / `→`|Seek ±5 seconds|
+|`↑` / `↓`|Volume up / down|
+|`Ctrl` + arrow keys|Switch fullscreened tile without exiting|
 
 **PDF (fullscreen)**
-- `↑` / `↓` — scroll
-- `←` / `→` — previous/next page
-- `Ctrl+F` — find in document
-- `=` button — toggle side panel (bookmarks/thumbnails)
-- Drag to select and copy text
-- Links are clickable
+
+|Key|Action|
+|-|-|
+|`↑` / `↓`|Scroll|
+|`←` / `→`|Previous / next page|
+|`Ctrl+F`|Find in document|
+|`=`|Toggle sidebar (bookmarks / thumbnails)|
+
+Drag to select and copy text. Links are clickable.
 
 ## Features (fully and halfway implemented)
 
@@ -76,18 +93,22 @@ Online video works too via the link button, it runs yt-dlp under the hood so any
 - TODO:
     - Perhaps add editing features, basic cropping and image manipulation accomodations
 
-**TODO OVERALL**
-- Add workspaces, saved collections of all files opened at the (if valid) timestamp/page/configuration to be opened at will without manually importing all the files again
-- Add recent file list, ease of access
-- Add more ways to zoom in/out for PDFs and images
-- Allow slots to be resized by mouse drag on the borders
-- Clean up UI, revitalise it
-- Add radio support
-- Add metadata loaders, more akin to Plex/Kodi/Jellyfin
-- Add more containers to be supported (.cbx, .cbr, .txt, maybe .docx)
-- Clean up files, lot of code can be consolidated or split up further to avoid spaghetti-fication
-- Nested slots, open multiple slots within slots, group/ungroup media files based on format, parent directory, or user configuration
-- [more as per needs]
+**Comic Books**
+- Basic .cbz file opening along with zoom in/out functionalities, nothing special
+- Only loads one page at a time as of now, navigate with arrow keys
+
+## Roadmap
+
+* [ ] Workspaces — save and restore open file collections with timestamps, pages, and layout
+* [ ] Recent files list
+* [ ] Resizable tiles via mouse drag on borders
+* [ ] Nested slots — group media by format, directory, or manual config
+* [ ] Radio stream support
+* [ ] Metadata loaders (Plex/Kodi/Jellyfin style)
+* [ ] Additional containers: `.cbr`, `.cbx`, `.txt`
+* [ ] UI overhaul
+* [ ] Code consolidation pass
+* [more as needs arise]
 
 ## Dependencies
 

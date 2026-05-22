@@ -54,6 +54,8 @@
 
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
+
+
     static const QStringList vid = {"mp4", "mkv", "avi", "mov", "m3u8", "webm"};
     static const QStringList aud = {"mp3", "m4a", "flac", "ogg", "wav"};
     static const QStringList img = {"png","jpg","jpeg","webp","gif"};

@@ -62,7 +62,7 @@ struct MediaSlot  {
     virtual void scroll(int) {};
     virtual void seek(int) {}
     virtual void showSettings(QWidget*) {};
-    virtual void connectSlots(QObject* thisInstance) {}
+    virtual void connectSlots(QObject*) {}
     virtual QMediaPlayer::PlaybackState getPlayerState() const { return QMediaPlayer::StoppedState; }
     virtual QString type() const = 0;
 

@@ -22,6 +22,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void openCommandLineArgs(const QString &path);
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;

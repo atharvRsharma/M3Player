@@ -102,7 +102,9 @@ void MainWindow::openFiles() {
     for (const QString &f : files) addMedia(f);
 }
 
-
+void MainWindow::openCommandLineArgs(const QString &path) {
+    addMedia(path);
+}
 
 void MainWindow::openLinks() {
     QString url = QInputDialog::getText(this, "enter url", "url: ");
