@@ -18,7 +18,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">
-    <normaloff>:/images/icons/20210928131147.PNG</normaloff>:/images/icons/20210928131147.PNG</iconset>
+    <normaloff>:/images/icons/ex_curve.png</normaloff>:/images/icons/ex_curve.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget"/>
   <widget class="QToolBar" name="toolBar_2">

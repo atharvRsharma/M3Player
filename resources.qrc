@@ -8,5 +8,11 @@
         <file>icons/20210928131147.PNG</file>
         <file>icons/menu.png</file>
         <file>icons/link.png</file>
+        <file>icons/curve.png</file>
+        <file>icons/curve_ex_tilted.png</file>
+        <file>icons/curve_tilted.png</file>
+        <file>icons/ex_curve.png</file>
+        <file>icons/flat.png</file>
+        <file>icons/ex_curve.ico</file>
     </qresource>
 </RCC>

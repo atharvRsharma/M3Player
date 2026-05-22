@@ -6,6 +6,7 @@ CONFIG += c++17
 
 VCPKG_ROOT = C:/vcpkg
 
+RC_ICONS = icons/ex_curve.ico
 
 win32 {
     INCLUDEPATH += $$VCPKG_ROOT/installed/x64-windows/include
