@@ -40,17 +40,20 @@
 #include <QtPdf/QPdfSelection>
 #include <QPdfLinkModel>
 #include <QDesktopServices>
+#include <QMimeDatabase>
 
 #include "miniz.h"
 //#include <poppler/qt6/poppler-qt6.h>
 
 
 
+#ifndef Q_OS_ANDROID
 #include <taglib/fileref.h>
 #include <taglib/tag.h>
 #include <taglib/id3v2tag.h>
 #include <taglib/unsynchronizedlyricsframe.h>
 #include <taglib/mpegfile.h>
+#endif
 
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance) {
@@ -63,6 +66,20 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
     static const QStringList comic = {"cbz"};
 
     QString ext = QFileInfo(QUrl(path).path()).suffix().toLower();
+    qDebug() << "makeSlot path:" << path << "| ext:" << ext;
+
+#ifdef Q_OS_ANDROID
+    if (ext.isEmpty()) {
+        QMimeDatabase db;
+        QMimeType mime = db.mimeTypeForUrl(QUrl(path));
+        QString name = mime.name();
+        qDebug() << "mime:" << name;
+        if (name.startsWith("video/"))       ext = "mp4";
+        else if (name.startsWith("audio/"))  ext = "mp3";
+        else if (name.startsWith("image/"))  ext = "jpg";
+        else if (name == "application/pdf")  ext = "pdf";
+    }
+#endif
 
     if (vid.contains(ext)) {
         auto slot = std::make_unique<VideoSlot>();
@@ -489,18 +506,65 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
 }
 
 QString AudioSlot::getLyrics(const QString &filePath) {
+#ifndef Q_OS_ANDROID
     TagLib::MPEG::File file(filePath.toUtf8().constData());
     auto *tag = file.ID3v2Tag();
     if (!tag) return {};
-
-
     auto frames = tag->frameListMap()["USLT"];
     if (frames.isEmpty()) return {};
-
     auto *frame = dynamic_cast<TagLib::ID3v2::UnsynchronizedLyricsFrame*>(frames.front());
     if (!frame) return {};
-
     return QString::fromStdWString(frame->text().toWString());
+#else
+
+    QFile f(filePath);
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    QByteArray header = f.read(10);
+    if (header.size() < 10 || header.left(3) != "ID3") return {};
+
+    quint32 tagSize = ((quint8)header[6] << 21)
+                      | ((quint8)header[7] << 14)
+                      | ((quint8)header[8] << 7)
+                      | ((quint8)header[9]);
+
+    QByteArray tagData = f.read(tagSize);
+    int i = 0;
+
+    while (i + 10 <= tagData.size()) {
+        QString frameId = QString::fromLatin1(tagData.mid(i, 4));
+        quint32 frameSize = ((quint8)tagData[i+4] << 24)
+                            | ((quint8)tagData[i+5] << 16)
+                            | ((quint8)tagData[i+6] << 8)
+                            | ((quint8)tagData[i+7]);
+        i += 10;
+
+        if (frameId == "USLT" && frameSize > 4 && i + (int)frameSize <= tagData.size()) {
+            QByteArray frameData = tagData.mid(i, frameSize);
+            quint8 encoding = (quint8)frameData[0];
+
+            int offset = 4;
+            if (encoding == 0 || encoding == 3) {
+                while (offset < frameData.size() && frameData[offset] != '\0') ++offset;
+                ++offset;
+                QByteArray lyrics = frameData.mid(offset);
+                return encoding == 3
+                           ? QString::fromUtf8(lyrics)
+                           : QString::fromLatin1(lyrics);
+            } else if (encoding == 1 || encoding == 2) {
+
+                while (offset + 1 < frameData.size() &&
+                       !(frameData[offset] == '\0' && frameData[offset+1] == '\0')) ++offset;
+                offset += 2;
+                QByteArray lyrics = frameData.mid(offset);
+                return QString::fromUtf16(
+                    reinterpret_cast<const char16_t*>(lyrics.constData()),
+                    lyrics.size() / 2);
+            }
+        }
+        i += frameSize;
+    }
+    return {};
+#endif
 }
 
 void AudioSlot::play() { player->play(); }
@@ -645,6 +709,10 @@ void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     viewer->viewport()->setAcceptDrops(true);
 
     viewer->setScene(scene);
+#ifdef Q_OS_ANDROID
+    viewer->setViewport(new QWidget());
+    viewer->setRenderHint(QPainter::SmoothPixmapTransform);
+#endif
     viewer->setAlignment(Qt::AlignTop);
     viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
 

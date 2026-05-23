@@ -55,10 +55,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     actionSettings = new QAction(QIcon(":/images/icons/menu.png"), "", this);
     ui->toolBar->addAction(actionSettings);
+    // ui->toolBar_2->hide();
 
     connect(ui->actionPlay,     &QAction::triggered, this, &MainWindow::play);
     connect(ui->actionPause,    &QAction::triggered, this, &MainWindow::pause);
-    connect(ui->actionOpen,     &QAction::triggered, this, &MainWindow::openFiles);
+    connect(ui->actionOpen, &QAction::triggered, this, [this]() {
+        qDebug() << "actionOpen triggered";
+        openFiles();
+    });
     connect(ui->actionLink,     &QAction::triggered, this, &MainWindow::openLinks);
     connect(actionSettings,     &QAction::triggered, this, &MainWindow::toggleSettings);
     connect(volSlider,          &QSlider::valueChanged, this, &MainWindow::changeVolume);
@@ -92,14 +96,33 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+// void MainWindow::openFiles() {
+//     QStringList files = QFileDialog::getOpenFileNames(
+//         this,
+//         tr("Select Media"),
+//         QDir::homePath()
+//         );
+
+//     for (const QString &f : files) addMedia(f);
+// }
+
 void MainWindow::openFiles() {
+#ifdef Q_OS_ANDROID
+    QList<QUrl> urls = QFileDialog::getOpenFileUrls(
+        this,
+        tr("Select Media"),
+        QUrl()
+        );
+    qDebug() << "openFiles got urls:" << urls;
+    for (const QUrl &u : urls) addMedia(u.toString());
+#else
     QStringList files = QFileDialog::getOpenFileNames(
         this,
         tr("Select Media"),
         QDir::homePath()
         );
-
     for (const QString &f : files) addMedia(f);
+#endif
 }
 
 void MainWindow::openCommandLineArgs(const QString &path) {
@@ -470,6 +493,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                 }
             }
             else if(e->key() == Qt::Key_F && !e->modifiers()) {
+                if (selectedIndices.empty()) return true;
                 if (fullscreenIndex == -1) {
                     enterFullscreen(selectedIndices[0]);
                     // mediaSlots[fullscreenIndex]->toggleMediaControls(true);
