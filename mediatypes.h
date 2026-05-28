@@ -63,6 +63,7 @@ struct MediaSlot  {
     virtual void seek(int) {}
     virtual void showSettings(QWidget*) {};
     virtual void connectSlots(QObject*) {}
+    virtual void initWidgets(QWidget*) = 0;
     virtual QMediaPlayer::PlaybackState getPlayerState() const { return QMediaPlayer::StoppedState; }
     virtual QString type() const = 0;
 
@@ -92,6 +93,7 @@ struct VideoSlot : MediaSlot {
     bool subtitlesEnabled   = true;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+    void initWidgets(QWidget *parent) override;
     void play() override;
     void pause() override;
     void stop() override;
@@ -146,6 +148,7 @@ struct AudioSlot : MediaSlot {
 
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+    void initWidgets(QWidget *parent) override;
     void play() override;
     void pause() override;
     void stop() override;
@@ -182,10 +185,12 @@ struct ImageSlot : MediaSlot {
     QGraphicsScene          *scene;
     QSize                   lastSize;
     QPixmap                 pixmap;
+    QString                 filePath;
 
     qreal zoomFactor = 1.0f;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+    void initWidgets(QWidget *parent) override;
     void zoom(qreal x) override;
 
     QString type() const override { return "image"; }
@@ -237,11 +242,13 @@ struct PdfSlot : MediaSlot {
 
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+    void initWidgets(QWidget *parent) override;
     void forward() override;
     void backward() override;
     void zoom(qreal x) override;
     void scroll(int x) override;
     void connectSlots(QObject* thisInstance) override;
+    void initLayoutSetInstall(QObject *thisInstance);
 
     QString type() const override { return "pdf"; }
     ~PdfSlot();
@@ -279,6 +286,7 @@ struct ComicSlot : MediaSlot {
     int                 totalPages  = 0;
 
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
+    void initWidgets(QWidget *parent) override;
     void forward() override;
     void backward() override;
     void zoom(qreal x) override;
@@ -298,29 +306,6 @@ struct PlaintextSlot : MediaSlot {
     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
 };
 
-
-// struct PdfSlotMinimal : MediaSlot {
-//     QPdfDocument    *doc;
-//     QPdfView        *viewer;
-//     QPdfPageSelector *pageSelector;
-//     QPdfSearchModel *searchModel;
-//     QLineEdit *searchField;
-
-
-//     qreal zoomFactor = 1.0f;
-
-//     void load(const QString &path, QWidget *parent, QObject *thisInstance) override;
-
-//     QString type() const override { return "pdf"; }
-
-//     // void zoom(qreal x) override {
-//     //     qreal newZoom = zoomFactor * x;
-//     //     if (newZoom > 10.0) return;
-//     //     zoomFactor = newZoom;
-//     //     viewer->scale(x, x);
-//     // }
-
-// };
 
 std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObject *thisInstance);
 

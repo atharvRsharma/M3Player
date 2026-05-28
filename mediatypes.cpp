@@ -66,7 +66,7 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
     static const QStringList comic = {"cbz"};
 
     QString ext = QFileInfo(QUrl(path).path()).suffix().toLower();
-    qDebug() << "makeSlot path:" << path << "| ext:" << ext;
+    // qDebug() << "makeSlot path:" << path << "| ext:" << ext;
 
 #ifdef Q_OS_ANDROID
     if (ext.isEmpty()) {
@@ -116,25 +116,11 @@ std::unique_ptr<MediaSlot> makeSlot(const QString &path, QWidget *parent, QObjec
 //VIDEOVIDEOVIDEO======================================================================================================================
 
 void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
-    wrapper = new QWidget(parent);
-    video = new QVideoWidget(wrapper);
-    slider = new QSlider(Qt::Horizontal, wrapper);
-    player = new QMediaPlayer(wrapper);
-    audio = new QAudioOutput(wrapper);
-    border = new QWidget(wrapper);
-    subtitleTracks = new QComboBox(wrapper);
-    audioTracks = new QComboBox(wrapper);
-    videoTracks = new QComboBox(wrapper);
-
-    QWidget *mainWin = parent;
-    while (mainWin->parentWidget()) mainWin = mainWin->parentWidget();
-
-    subtitleOverlay = new QWidget(mainWin, Qt::Tool | Qt::FramelessWindowHint);
+    initWidgets(parent);
 
     subtitleOverlay->setAttribute(Qt::WA_TranslucentBackground);
     subtitleOverlay->setAttribute(Qt::WA_ShowWithoutActivating);
 
-    externalSubtitleLabel = new QLabel(subtitleOverlay);
     externalSubtitleLabel->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
     externalSubtitleLabel->setWordWrap(true);
     externalSubtitleLabel->setStyleSheet("color: white; background: rgba(0,0,0,120); padding: 4px; font-size: 16px;");
@@ -183,6 +169,24 @@ void VideoSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     player->setSource(url);
 
     player->pause();
+}
+
+void VideoSlot::initWidgets(QWidget *parent) {
+    wrapper = new QWidget(parent);
+    video = new QVideoWidget(wrapper);
+    slider = new QSlider(Qt::Horizontal, wrapper);
+    player = new QMediaPlayer(wrapper);
+    audio = new QAudioOutput(wrapper);
+    border = new QWidget(wrapper);
+    subtitleTracks = new QComboBox(wrapper);
+    audioTracks = new QComboBox(wrapper);
+    videoTracks = new QComboBox(wrapper);
+
+    QWidget *mainWin = parent;
+    while (mainWin->parentWidget()) mainWin = mainWin->parentWidget();
+
+    subtitleOverlay = new QWidget(mainWin, Qt::Tool | Qt::FramelessWindowHint);
+    externalSubtitleLabel = new QLabel(subtitleOverlay);
 }
 
 void VideoSlot::play() { player->play(); }
@@ -438,16 +442,7 @@ VideoSlot::~VideoSlot() {
 //AUDIOAUDIOAUDIO====================================================================================================================
 
 void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
-    wrapper      = new QWidget(parent);
-    player       = new QMediaPlayer(wrapper);
-    audio        = new QAudioOutput(wrapper);
-    slider       = new QSlider(Qt::Horizontal, wrapper);
-    cover        = new QLabel(wrapper);
-    title        = new QLabel(wrapper);
-    lyrics       = new QLabel(wrapper);
-    artist       = new QLabel(wrapper);
-    overlay      = new QWidget(wrapper);
-    border       = new QWidget(wrapper);
+    initWidgets(parent);
 
     auto *layout = new QVBoxLayout(wrapper);
     auto *metaDataLayout = new QVBoxLayout(overlay);
@@ -503,6 +498,19 @@ void AudioSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     player->setSource(url);
 
     player->pause();
+}
+
+void AudioSlot::initWidgets(QWidget *parent) {
+    wrapper      = new QWidget(parent);
+    player       = new QMediaPlayer(wrapper);
+    audio        = new QAudioOutput(wrapper);
+    slider       = new QSlider(Qt::Horizontal, wrapper);
+    cover        = new QLabel(wrapper);
+    title        = new QLabel(wrapper);
+    lyrics       = new QLabel(wrapper);
+    artist       = new QLabel(wrapper);
+    overlay      = new QWidget(wrapper);
+    border       = new QWidget(wrapper);
 }
 
 QString AudioSlot::getLyrics(const QString &filePath) {
@@ -686,12 +694,9 @@ AudioSlot::~AudioSlot() {
 //IMAGEIMAGEIMAGE=================================================================================================================
 
 void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
-    wrapper      = new QWidget(parent);
-    pixmap       = QPixmap(path);
-    border       = new QWidget(wrapper);
-    viewer       = new QGraphicsView(wrapper);
-    scene        = new QGraphicsScene(viewer);
-    item         = new QGraphicsPixmapItem(pixmap);
+    filePath = path;
+    initWidgets(parent);
+
     auto *layout = new QVBoxLayout(wrapper);
 
     layout->setContentsMargins(0,0,0,0);
@@ -729,6 +734,15 @@ void ImageSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     border->raise();
 }
 
+void ImageSlot::initWidgets(QWidget *parent) {
+    wrapper      = new QWidget(parent);
+    pixmap       = QPixmap(filePath);
+    border       = new QWidget(wrapper);
+    viewer       = new QGraphicsView(wrapper);
+    scene        = new QGraphicsScene(viewer);
+    item         = new QGraphicsPixmapItem(pixmap);
+}
+
 void ImageSlot::zoom(qreal x)  {
     qreal newZoom = zoomFactor * x;
     if (newZoom < 0.5 || newZoom > 10.0) return;
@@ -741,6 +755,129 @@ void ImageSlot::zoom(qreal x)  {
 //PDFPDFPDPFPDFPDF===NORMAL==============================================================================================================
 
 void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
+    initWidgets(parent);
+
+    initLayoutSetInstall(thisInstance);
+    initComboBox();
+
+    doc->load(path);
+    if (doc->status() != QPdfDocument::Status::Ready) return;
+
+    filePath = path;
+
+    pageCount->setText("of " + QString::number(doc->pageCount()));
+    bookmarkModel->setDocument(doc);
+    pageSelector->setDocument(doc);
+    searchModel->setDocument(doc);
+    linkModel->setDocument(doc);
+
+    connectSlots(thisInstance);
+}
+
+void PdfSlot::initLayoutSetInstall(QObject *thisInstance) {
+    if (auto *spin = pageSelector->findChild<QSpinBox*>())
+        spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
+
+    cacheFlushTimer->setSingleShot(true);
+    cacheFlushTimer->setInterval(3000);
+
+    wrapper->setAcceptDrops(true);
+    wrapper->installEventFilter(thisInstance);
+    wrapper->setAttribute(Qt::WA_Hover);
+
+    border->setAttribute(Qt::WA_TransparentForMouseEvents);
+    border->setGeometry(wrapper->rect());
+    border->raise();
+
+    viewer->setDocument(doc);
+    viewer->viewport()->installEventFilter(thisInstance);
+    viewer->viewport()->setAcceptDrops(true);
+    viewer->setPageMode(QPdfView::PageMode::MultiPage);
+    viewer->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    viewer->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    viewer->setSearchModel(searchModel);
+
+    navBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    navBar->setFixedHeight(36);
+    navBar->hide();
+
+    findBar->setMaximumWidth(420);
+    findBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    findBar->hide();
+
+    sidePanel->setStyleSheet("background-color: #111111;");
+    sidePanel->setWindowOpacity(0.55);
+    sidePanel->hide();
+    bookmarkTree->hide();
+    thumbnailView->hide();
+    thumbnailView->viewport()->installEventFilter(thisInstance);
+
+    linkHighlight->setAttribute(Qt::WA_TransparentForMouseEvents);
+    linkHighlight->setStyleSheet("background: rgba(255, 220, 0, 60); border: 1px solid rgba(255, 180, 0, 180);");
+    linkHighlight->hide();
+
+    searchField->setPlaceholderText(QString("Find in document"));
+    searchField->setMaximumWidth(400);
+
+    pageSelector->setFixedHeight(32);
+    pageSelector->setMaximumWidth(90);
+    zoomSelector->setFixedHeight(32);
+    zoomSelector->setMinimumWidth(120);
+    sidePanelButton->setFixedSize(40, 40);
+    prevPage->setFixedSize(30, 30);
+    nextPage->setFixedSize(30, 30);
+    indexTabButton->setFixedSize(40, 28);
+    thumbnailTabButton->setFixedSize(40, 28);
+
+    auto *findLayout = new QHBoxLayout(findBar);
+    findLayout->setContentsMargins(4, 2, 4, 2);
+    findLayout->setSpacing(4);
+    findLayout->addWidget(searchField);
+    findLayout->addWidget(findPrev);
+    findLayout->addWidget(findNext);
+    findLayout->addWidget(findClose);
+
+
+    auto *navLayout = new QHBoxLayout(navBar);
+    navLayout->setContentsMargins(8, 2, 8, 2);
+    navLayout->setSpacing(4);
+    navLayout->addWidget(sidePanelButton);
+    navLayout->addWidget(zoomSelector);
+    navLayout->addStretch();
+    navLayout->addWidget(prevPage);
+    navLayout->addWidget(pageSelector);
+    navLayout->addWidget(pageCount);
+    navLayout->addWidget(nextPage);
+
+
+    auto *tabBar = new QWidget(sidePanel);
+    tabBar->setFixedHeight(32);
+
+    auto *tabLayout = new QHBoxLayout(tabBar);
+    tabLayout->setContentsMargins(4, 2, 4, 2);
+    tabLayout->setSpacing(0);
+    // tabLayout->addStretch();
+    tabLayout->addWidget(indexTabButton);
+    tabLayout->addWidget(thumbnailTabButton);
+    tabLayout->addStretch();
+
+
+    auto *sidePanelLayout = new QVBoxLayout(sidePanel);
+    sidePanelLayout->setContentsMargins(0, 0, 0, 0);
+    sidePanelLayout->setSpacing(0);
+    sidePanelLayout->setAlignment(Qt::AlignTop);
+    sidePanelLayout->addWidget(tabBar);
+    sidePanelLayout->addWidget(bookmarkTree, 1);
+    sidePanelLayout->addWidget(thumbnailView, 1);
+
+    auto *layout = new QVBoxLayout(wrapper);
+    layout->setContentsMargins(0,0,0,0);
+    layout->setSpacing(0);
+    layout->addWidget(navBar);
+    layout->addWidget(viewer, 1);
+}
+
+void PdfSlot::initWidgets(QWidget *parent) {
     wrapper           = new QWidget(parent);
     viewer            = new QPdfView(wrapper);
     doc               = new QPdfDocument(wrapper);
@@ -773,137 +910,9 @@ void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) 
     thumbnailScene      = new QGraphicsScene(thumbnailView);
 
     linkHighlight = new QWidget(viewer->viewport());
-    linkHighlight->setAttribute(Qt::WA_TransparentForMouseEvents);
-    linkHighlight->setStyleSheet("background: rgba(255, 220, 0, 60); border: 1px solid rgba(255, 180, 0, 180);");
-    linkHighlight->hide();
-
-    cacheFlushTimer->setSingleShot(true);
-    cacheFlushTimer->setInterval(3000);
-
-
-    linkModel->setDocument(doc);
-
-    if (auto *spin = pageSelector->findChild<QSpinBox*>())
-        spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
-
-
-    findBar->setMaximumWidth(420);
-    findBar->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-
-
-    sidePanel->hide();
-    bookmarkTree->hide();
-    thumbnailView->hide();
-    sidePanelButton->setMaximumWidth(40);
-    thumbnailView->viewport()->installEventFilter(thisInstance);
-
-    navBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    navBar->setFixedHeight(36);
-    navBar->raise();
-    navBar->hide();
-
-
-    auto *findLayout = new QHBoxLayout(findBar);
-    findLayout->setContentsMargins(4, 2, 4, 2);
-    findLayout->setSpacing(4);
-    findLayout->addWidget(searchField);
-    findLayout->addWidget(findPrev);
-    findLayout->addWidget(findNext);
-    findLayout->addWidget(findClose);
-
-
-    auto *navLayout = new QHBoxLayout(navBar);
-    navLayout->setContentsMargins(8, 2, 8, 2);
-    navLayout->setSpacing(4);
-    navLayout->addWidget(sidePanelButton);
-    navLayout->addWidget(zoomSelector);
-
-
-    pageSelector->setFixedHeight(32);
-    pageSelector->setMaximumWidth(90);
-    zoomSelector->setFixedHeight(32);
-    zoomSelector->setMinimumWidth(120);
-
-
-    sidePanelButton->setMinimumWidth(40);
-
-
-    navLayout->addStretch();
-    navLayout->addWidget(prevPage);
-    navLayout->addWidget(pageSelector);
-    navLayout->addWidget(pageCount);
-    navLayout->addWidget(nextPage);
-
-    prevPage->setFixedSize(30, 30);
-    nextPage->setFixedSize(30, 30);
-
-    auto *sidePanelLayout = new QVBoxLayout(sidePanel);
-    sidePanelLayout->setContentsMargins(0, 0, 0, 0);
-    sidePanelLayout->setSpacing(0);
-    sidePanelLayout->setAlignment(Qt::AlignTop);
-    sidePanel->setStyleSheet("background-color: #111111;");
-    sidePanel->setWindowOpacity(0.55);
-
-    auto *tabBar = new QWidget(sidePanel);
-    tabBar->setFixedHeight(32);
-
-    auto *tabLayout = new QHBoxLayout(tabBar);
-    tabLayout->setContentsMargins(4, 2, 4, 2);
-    tabLayout->setSpacing(0);
-    // tabLayout->addStretch();
-    tabLayout->addWidget(indexTabButton);
-    tabLayout->addWidget(thumbnailTabButton);
-    tabLayout->addStretch();
-    indexTabButton->setFixedSize(40, 28);
-    thumbnailTabButton->setFixedSize(40, 28);
-
-    sidePanelLayout->addWidget(tabBar);
-    sidePanelLayout->addWidget(bookmarkTree, 1);
-    sidePanelLayout->addWidget(thumbnailView, 1);
-
-    auto *layout = new QVBoxLayout(wrapper);
-    layout->setContentsMargins(0,0,0,0);
-    layout->setSpacing(0);
-    layout->addWidget(navBar);
-    layout->addWidget(viewer, 1);
-
-    wrapper->setAcceptDrops(true);
-    wrapper->installEventFilter(thisInstance);
-    wrapper->setAttribute(Qt::WA_Hover);
-
-    initComboBox();
-
-    viewer->viewport()->installEventFilter(thisInstance);
-    viewer->viewport()->setAcceptDrops(true);
-
-    border->setAttribute(Qt::WA_TransparentForMouseEvents);
-    border->setGeometry(wrapper->rect());
-    border->raise();
-
-
-    if (!doc) {
-        return;
-    }
-    doc->load(path);
-    filePath = path;
-    pageCount->setText("of " + QString::number(doc->pageCount()));
-
-    viewer->setDocument(doc);
-    bookmarkModel->setDocument(doc);
-    pageSelector->setDocument(doc);
-    searchModel->setDocument(doc);
-
     nav = viewer->pageNavigator();
-    viewer->setPageMode(QPdfView::PageMode::MultiPage);
-    viewer->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    viewer->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-    viewer->setSearchModel(searchModel);
 
-    searchField->setPlaceholderText(QString("Find in document"));
-    searchField->setMaximumWidth(400);
-    findBar->raise();
-    findBar->hide();
-    connectSlots(thisInstance);
+
 }
 
 QPointF PdfSlot::toPdfPoint(QPoint viewportPos, int page) {
@@ -1305,11 +1314,7 @@ PdfSlot::~PdfSlot() {
 
 
 void ComicSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
-    wrapper = new QWidget(parent);
-    viewer  = new QGraphicsView(wrapper);
-    scene   = new QGraphicsScene(viewer);
-    border  = new QWidget(wrapper);
-
+    initWidgets(parent);
     auto *layout = new QVBoxLayout(wrapper);
     layout->setContentsMargins(0,0,0,0);
     layout->addWidget(viewer);
@@ -1369,6 +1374,13 @@ void ComicSlot::load(const QString &path, QWidget *parent, QObject *thisInstance
     showPage(0);
 }
 
+void ComicSlot::initWidgets(QWidget *parent) {
+    wrapper = new QWidget(parent);
+    viewer  = new QGraphicsView(wrapper);
+    scene   = new QGraphicsScene(viewer);
+    border  = new QWidget(wrapper);
+}
+
 void ComicSlot::showPage(int index) {
     if (index < 0 || index >= totalPages) return;
     currentPage = index;
@@ -1384,8 +1396,6 @@ void ComicSlot::showPage(int index) {
     QTimer::singleShot(0, viewer, [this, item]() {
         viewer->fitInView(item, Qt::KeepAspectRatio);
     });
-
-    //emit pageChanged(currentPage);
 }
 
 void ComicSlot::forward()  { showPage(currentPage + 1); }
@@ -1395,6 +1405,7 @@ void ComicSlot::backward() { showPage(currentPage - 1); }
 void ComicSlot::scroll(int x) {
     viewer->verticalScrollBar()->setValue(viewer->verticalScrollBar()->value() + x);
 }
+
 void ComicSlot::zoom(qreal x) {
     qreal n = zoomFactor * x;
     if (n < 0.5 || n > 10.0) return;
@@ -1412,80 +1423,4 @@ void PlaintextSlot::load(const QString &path, QWidget *parent, QObject *thisInst
 }
 
 //\\PLAINTEXTPLAINTEXTPLAINTEXT=================================================================================================================
-
-//PDFPDFPDPFPDFPDF===MINIMAL==============================================================================================================
-
-// void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {    minimal
-//     wrapper      = new QWidget(parent);
-//     viewer       = new QGraphicsView(wrapper);
-//     scene        = new QGraphicsScene(viewer);
-//     doc          = new QPdfDocument(wrapper);
-//     border       = new QWidget(wrapper);
-
-//     pageSelector = new QPdfPageSelector(wrapper);
-//     searchModel = new QPdfSearchModel(wrapper);
-//     searchField = new QLineEdit(wrapper);
-//     //renderer     = new QPdfPageRenderer(wrapper);
-//     auto *layout = new QVBoxLayout(wrapper);
-
-//     layout->setContentsMargins(0,0,0,0);
-//     layout->addWidget(viewer);
-
-//     if (!doc) {
-//         return;
-//     }
-
-//     doc->load(path);
-//     // renderer->setDocument(doc);
-//     // renderer->setRenderMode(QPdfPageRenderer::RenderMode::MultiThreaded);
-
-//     QPdfDocumentRenderOptions opts;
-//     opts.setRenderFlags(QPdfDocumentRenderOptions::RenderFlag::Annotations);
-//     //renderer->requestPage(0, QSize(800, 1000));
-
-//     //qDebug() << "page count:" << doc->pageCount() << "status:" << doc->status();
-//     int pageCt = doc->pageCount();
-
-//     qreal yOffset = 0;
-
-//     for (int i{}; i < pageCt; ++i) {
-//         QSizeF pageSize = doc->pagePointSize(i);
-//         QSize renderSize = (pageSize * 2.0).toSize();
-
-//         auto img = doc->render(i, renderSize, opts);
-//         QImage filledImg(renderSize, QImage::Format_RGB32);
-//         filledImg.fill(Qt::white);
-//         QPainter p(&filledImg);
-//         p.drawImage(0, 0, img);
-//         p.end();
-//         QPixmap pix = QPixmap::fromImage(filledImg);
-//         auto *item = new QGraphicsPixmapItem(pix);
-//         item->setPos(0, yOffset);
-//         scene->addItem(item);
-//         yOffset += pix.height() + 10;
-//     }
-
-//     //viewer->setSceneRect(QRectF());
-
-//     viewer->setDragMode(QGraphicsView::ScrollHandDrag);
-
-//     viewer->setAcceptDrops(true);
-//     viewer->installEventFilter(thisInstance);
-//     viewer->viewport()->installEventFilter(thisInstance);
-//     viewer->viewport()->setAcceptDrops(true);
-//     wrapper->setAcceptDrops(true);
-//     wrapper->installEventFilter(thisInstance);
-//     wrapper->setAttribute(Qt::WA_Hover);
-//     viewer->setScene(scene);
-//     viewer->setBackgroundBrush(Qt::black);
-//     viewer->setAlignment(Qt::AlignTop);
-//     viewer->setTransformationAnchor(QGraphicsView::AnchorViewCenter);
-
-//     QRectF contentRect = scene->itemsBoundingRect();
-//     viewer->setSceneRect(contentRect.adjusted(-5000, -500, 5000, 500));
-
-//     border->setAttribute(Qt::WA_TransparentForMouseEvents);
-//     border->setGeometry(wrapper->rect());
-//     border->raise();
-// }
 
