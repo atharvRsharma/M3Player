@@ -235,6 +235,8 @@ struct PdfSlot : MediaSlot {
     qreal               factor;
     QPoint              dragStart;
     QPoint              dragEnd;
+    int                 evictValue              = 0;
+    int                 evictThreshold          = 120;
     int                 currentResultIndex      = -1;
     bool                sidePanelOpen           = false;
     bool                thumbnailsLoaded        = false;

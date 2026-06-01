@@ -52,6 +52,8 @@ private:
     QAction         *action;
     QWidget         *settings;
     QAction         *actionSettings;
+    QTimer          *rebuildDebounce;
+    QStringList     pendingPaths;
 
     //selection related global vars(TODO get rid of ts </3)
     int hoveredIndex = -1;

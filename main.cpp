@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QTimer>
 
 
 int main(int argc, char *argv[]) {
@@ -22,6 +23,7 @@ int main(int argc, char *argv[]) {
         socket.write(paths.join("\n").toUtf8());
         socket.flush();
         socket.waitForBytesWritten(500);
+        socket.disconnectFromServer();
         return 0;
     }
 
@@ -39,16 +41,31 @@ int main(int argc, char *argv[]) {
 
     QObject::connect(&server, &QLocalServer::newConnection, &server, [&] {
         QLocalSocket *client = server.nextPendingConnection();
-        client->waitForReadyRead(500);
-        QString incoming = QString::fromUtf8(client->readAll());
-        if (!incoming.isEmpty()) {
-            for (auto &p : incoming.split("\n", Qt::SkipEmptyParts)) {
-                w.openCommandLineArgs(p);
-            }
-        }
-        w.raise();
-        w.activateWindow();
-        client->deleteLater();
+        auto *buffer = new QByteArray();
+        auto *timer = new QTimer(client);
+        timer->setSingleShot(true);
+        timer->setInterval(50);
+
+        QObject::connect(client, &QLocalSocket::readyRead, client, [client, buffer, timer]() {
+            buffer->append(client->readAll());
+            timer->start();
+        });
+
+        QObject::connect(timer, &QTimer::timeout, client, [&w, client, buffer]() {
+            QString incoming = QString::fromUtf8(*buffer);
+            delete buffer;
+            if (!incoming.isEmpty())
+                for (auto &p : incoming.split("\n", Qt::SkipEmptyParts))
+                    w.openCommandLineArgs(p);
+            w.raise();
+            w.activateWindow();
+            client->deleteLater();
+        });
+
+        QObject::connect(client, &QLocalSocket::disconnected, client, [timer]() {
+            if (!timer->isActive())
+                timer->start();
+        });
     });
 
 

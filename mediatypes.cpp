@@ -757,6 +757,7 @@ void ImageSlot::zoom(qreal x)  {
 void PdfSlot::load(const QString &path, QWidget *parent, QObject *thisInstance) {
     initWidgets(parent);
 
+
     initLayoutSetInstall(thisInstance);
     initComboBox();
 
@@ -1235,18 +1236,22 @@ void PdfSlot::connectSlots(QObject* thisInstance) {
     });
 
     QObject::connect(viewer->verticalScrollBar(), &QScrollBar::valueChanged,
-                     thisInstance, [this]() {
-                         pageSelector->setCurrentPage(nav->currentPage());
-                         cacheFlushTimer->start();
-                     });
+                      thisInstance, [this]() {
+                          pageSelector->setCurrentPage(nav->currentPage());
+                          cacheFlushTimer->start();
+                          evictValue += 7;
+                      });
 
     QObject::connect(cacheFlushTimer, &QTimer::timeout,
                      thisInstance, [this]() {
-                         int scrollPos = viewer->verticalScrollBar()->value();
-                         viewer->setDocument(nullptr);
-                         viewer->setDocument(doc);
-                         linkModel->setDocument(doc);
-                         viewer->verticalScrollBar()->setValue(scrollPos);
+                         if (evictValue > evictThreshold) {
+                             int scrollPos = viewer->verticalScrollBar()->value();
+                             viewer->setDocument(nullptr);
+                             viewer->setDocument(doc);
+                             linkModel->setDocument(doc);
+                             viewer->verticalScrollBar()->setValue(scrollPos);
+                         }
+                         evictValue = 0;
                      });
 }
 

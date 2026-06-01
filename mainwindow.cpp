@@ -79,6 +79,18 @@ MainWindow::MainWindow(QWidget *parent)
     setCentralWidget(container);
     setFocusPolicy(Qt::StrongFocus);
 
+    rebuildDebounce = new QTimer(this);
+    rebuildDebounce->setSingleShot(true);
+    rebuildDebounce->setInterval(150);
+    connect(rebuildDebounce, &QTimer::timeout, this, [this]() {
+        for (auto &p : pendingPaths) {
+            auto slot = makeSlot(p, container, this);
+            if (slot) mediaSlots.push_back(std::move(slot));
+        }
+        pendingPaths.clear();
+        rebuildGrid();
+    });
+
     settings = new QWidget(nullptr, Qt::Tool | Qt::FramelessWindowHint);
     QRect r = container->rect();
     QPoint topRightGlobal = container->mapToGlobal(QPoint(r.width(), 0));
@@ -126,7 +138,8 @@ void MainWindow::openFiles() {
 }
 
 void MainWindow::openCommandLineArgs(const QString &path) {
-    addMedia(path);
+    pendingPaths.append(path);
+    rebuildDebounce->start();
 }
 
 void MainWindow::openLinks() {
